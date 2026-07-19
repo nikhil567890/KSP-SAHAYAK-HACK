@@ -1,0 +1,6 @@
+{
+  "name": "KSP-Sahayak",
+  "description": "Enterprise-Grade Intelligent Conversational AI & Crime Analytics Platform for Karnataka State Police (KSP)",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
