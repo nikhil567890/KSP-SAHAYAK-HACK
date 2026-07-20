@@ -92,6 +92,53 @@ function parseCleanJSON(str: string): any {
   }
 }
 
+async function geminiQueryDatabase(query: string): Promise<any> {
+  const gemini = getGeminiClient();
+  if (!gemini) {
+    return null;
+  }
+
+  const dataset = {
+    firs: kspDb.getFIRS().map(f => ({ id: f.id, firNumber: f.firNumber, policeStation: f.policeStation, crimeCategory: f.crimeCategory, description: f.description })),
+    accused: kspDb.getAccused().map(a => ({ id: a.id, name: a.name, alias: a.alias, modusOperandi: a.modusOperandi })),
+    transactions: kspDb.getTransactions().map(t => ({ id: t.id, sourceOwner: t.sourceOwner, destOwner: t.destOwner, amount: t.amount, flagReason: t.flagReason })),
+    vehicles: kspDb.getVehicles().map(v => ({ id: v.id, registrationNumber: v.registrationNumber, make: v.make, ownerName: v.ownerName })),
+    phones: kspDb.getPhones().map(p => ({ id: p.id, phoneNumber: p.phoneNumber, imei: p.imei, ownerName: p.ownerName })),
+    bengaluru_crime_stats_2025: kspDb.getStateStats().map(s => ({ id: String(s._id), slNo: s["Sl. No."], headsOfCrime: s["Heads of Crime"], casesFor2025: s["For 2025"] }))
+  };
+
+  const systemPrompt = `You are the database search query router of KSP-Sahayak. Your task is to analyze a natural language crime database search query and match it to the most relevant records in the Karnataka State Police (KSP) database.
+  
+Given the following dataset representation:
+${JSON.stringify(dataset, null, 2)}
+
+And the search query: "${query}"
+
+Determine which records from our database match this query.
+Return your response STRICTLY as a JSON object with the following schema:
+{
+  "tableName": "firs" | "accused" | "transactions" | "vehicles" | "phones" | "state_stats" | "all",
+  "matchingIds": string[],
+  "sqlUsed": "The SQL query representing this search query against our database",
+  "reasoning": "A concise explanation of why these records match the search criteria",
+  "confidence": number
+}
+Ensure the response is fully valid JSON. Do not include markdown wraps like \`\`\`json. Return only the JSON string.`;
+
+  try {
+    const response = await generateContentWithRetry(gemini, {
+      model: "gemini-2.5-flash",
+      contents: [{ role: "user", parts: [{ text: systemPrompt }] }],
+      config: { responseMimeType: "application/json" }
+    });
+    const parsed = parseCleanJSON(response.text);
+    return parsed;
+  } catch (err) {
+    console.error("Gemini DB query error:", err);
+    return null;
+  }
+}
+
 async function startServer() {
   const app = express();
   app.use(express.json());
@@ -141,6 +188,14 @@ async function startServer() {
     res.json(kspDb.getAuditLogs());
   });
 
+  app.get("/api/state-stats", (req, res) => {
+    res.json(kspDb.getStateStats());
+  });
+
+  app.get("/api/firebase-status", (req, res) => {
+    res.json(kspDb.getFirebaseStatus());
+  });
+
   app.post("/api/audit-logs", (req, res) => {
     const { userId, userName, role, action, queryExecuted, tablesAccessed, recordCount, ipAddress } = req.body;
     const log = kspDb.logAction(
@@ -154,6 +209,42 @@ async function startServer() {
       ipAddress || "127.0.0.1"
     );
     res.json(log);
+  });
+
+  // OpenCity Data API proxy
+  app.post("/api/opencity/search", async (req, res) => {
+    const { resource_id, limit, q, offset } = req.body;
+    const token = process.env.OPENCITY_API_TOKEN;
+    const headers: Record<string, string> = {
+      "content-type": "application/json"
+    };
+    if (token) {
+      headers["authorization"] = token;
+    }
+
+    try {
+      const resp = await fetch("https://data.opencity.in/api/action/datastore_search", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          resource_id: resource_id || "91859ec9-0bcd-4f78-aa37-7fa1346eac36",
+          limit: limit || 10,
+          q: q || "",
+          offset: offset || 0
+        })
+      });
+      
+      if (!resp.ok) {
+        const errText = await resp.text();
+        return res.status(resp.status).json({ error: "Failed to fetch from OpenCity", details: errText });
+      }
+      
+      const data = await resp.json();
+      res.json(data);
+    } catch (error: any) {
+      console.error("OpenCity API fetch error:", error);
+      res.status(500).json({ error: "Internal Server Error fetching OpenCity data", message: error.message });
+    }
   });
 
   // Legacy Database Ingestion Endpoint
@@ -180,8 +271,47 @@ async function startServer() {
   });
 
   // Database Search Endpoint (RAG-ready)
-  app.post("/api/db/query", (req, res) => {
+  app.post("/api/db/query", async (req, res) => {
     const { query, userName, role } = req.body;
+    
+    const gResult = await geminiQueryDatabase(query || "");
+    if (gResult) {
+      let results: any[] = [];
+      const { tableName, matchingIds, sqlUsed, reasoning, confidence } = gResult;
+      
+      if (tableName === "firs") {
+        results = kspDb.getFIRS().filter(f => matchingIds.includes(f.id));
+      } else if (tableName === "accused") {
+        results = kspDb.getAccused().filter(a => matchingIds.includes(a.id));
+      } else if (tableName === "transactions") {
+        results = kspDb.getTransactions().filter(t => matchingIds.includes(t.id));
+      } else if (tableName === "vehicles") {
+        results = kspDb.getVehicles().filter(v => matchingIds.includes(v.id));
+      } else if (tableName === "phones") {
+        results = kspDb.getPhones().filter(p => matchingIds.includes(p.id));
+      } else if (tableName === "state_stats") {
+        results = kspDb.getStateStats().filter(s => matchingIds.includes(String(s._id)));
+      } else {
+        results = [
+          ...kspDb.getFIRS().filter(f => matchingIds.includes(f.id)),
+          ...kspDb.getAccused().filter(a => matchingIds.includes(a.id)),
+          ...kspDb.getTransactions().filter(t => matchingIds.includes(t.id)),
+          ...kspDb.getVehicles().filter(v => matchingIds.includes(v.id)),
+          ...kspDb.getPhones().filter(p => matchingIds.includes(p.id)),
+          ...kspDb.getStateStats().filter(s => matchingIds.includes(String(s._id)))
+        ];
+      }
+      
+      return res.json({
+        results,
+        sqlUsed,
+        evidence: matchingIds,
+        confidence,
+        reasoning,
+        limitations: ["Cognitive Gemini search router matches."]
+      });
+    }
+
     const result = kspDb.queryDatabase(query || "", userName || "System Searcher", role || UserRole.INVESTIGATOR);
     res.json(result);
   });
@@ -193,7 +323,44 @@ async function startServer() {
     const targetLang = language || "English";
 
     // 1. Retrieve data matching query keywords from our normalized KSP local DB
-    const dbQuery = kspDb.queryDatabase(message, currentUser.name, currentUser.role);
+    let dbQuery: any = null;
+    const gResult = await geminiQueryDatabase(message || "");
+    if (gResult) {
+      let results: any[] = [];
+      const { tableName, matchingIds, sqlUsed, reasoning, confidence } = gResult;
+      
+      if (tableName === "firs") {
+        results = kspDb.getFIRS().filter(f => matchingIds.includes(f.id));
+      } else if (tableName === "accused") {
+        results = kspDb.getAccused().filter(a => matchingIds.includes(a.id));
+      } else if (tableName === "transactions") {
+        results = kspDb.getTransactions().filter(t => matchingIds.includes(t.id));
+      } else if (tableName === "vehicles") {
+        results = kspDb.getVehicles().filter(v => matchingIds.includes(v.id));
+      } else if (tableName === "phones") {
+        results = kspDb.getPhones().filter(p => matchingIds.includes(p.id));
+      } else if (tableName === "state_stats") {
+        results = kspDb.getStateStats().filter(s => matchingIds.includes(String(s._id)));
+      } else {
+        results = [
+          ...kspDb.getFIRS().filter(f => matchingIds.includes(f.id)),
+          ...kspDb.getAccused().filter(a => matchingIds.includes(a.id)),
+          ...kspDb.getTransactions().filter(t => matchingIds.includes(t.id)),
+          ...kspDb.getStateStats().filter(s => matchingIds.includes(String(s._id)))
+        ];
+      }
+      
+      dbQuery = {
+        results,
+        sqlUsed,
+        evidence: matchingIds,
+        confidence,
+        reasoning,
+        limitations: ["Cognitive Gemini search router matches."]
+      };
+    } else {
+      dbQuery = kspDb.queryDatabase(message, currentUser.name, currentUser.role);
+    }
     
     // 2. Synthesize prompt using the actual retrieved records to prevent any hallucinations
     const systemPrompt = `You are "KSP-Sahayak", an elite, secure, production-grade conversational AI assistant for the Karnataka State Police (KSP).
@@ -338,6 +505,7 @@ Officer Information (Role-Aware Constraints):
 Context Data:
 ${JSON.stringify(contextData, null, 2)}
 
+Make sure to respond in ${targetLang}. If Kannada, provide a professional, highly accurate translation of all recommendations and reasoning strings inside the JSON.
 Ensure the response is fully valid JSON. Do not include markdown wraps like \`\`\`json. Return only the JSON string.`;
 
     try {
@@ -355,31 +523,36 @@ Ensure the response is fully valid JSON. Do not include markdown wraps like \`\`
       console.error("Copilot AI Error, using fallback:", err);
     }
 
+    const isKannada = targetLang === "Kannada";
     // Advanced, dynamic off-line fallback
     let recommendations = [
-      "Obtain CDR records of suspect's mobile line immediately and perform a cell tower correlation map.",
-      "Issue urgent freeze notice to SBI and intermediary gateways for the suspect's bank account nodes.",
-      "Collect high-resolution CCTV footage from intersections and ATMs near the reported crime scene.",
-      "Verify SIM card cardholder KYC details with the respective telecom operator.",
-      "Analyze FastTag log history for suspect vehicle coordinates across toll checkpoints."
+      isKannada ? "ಮೊಬೈಲ್ ಲೈನ್‌ನ ಸಿಡಿಆರ್ ದಾಖಲೆಗಳನ್ನು ತಕ್ಷಣ ಪಡೆದುಕೊಳ್ಳಿ ಮತ್ತು ಸೆಲ್ ಟವರ್ ಮ್ಯಾಪ್ ನಿರ್ವಹಿಸಿ." : "Obtain CDR records of suspect's mobile line immediately and perform a cell tower correlation map.",
+      isKannada ? "ಶಂಕಿತರ ಬ್ಯಾಂಕ್ ಖಾತೆಗಳಿಗಾಗಿ ಎಸ್‌ಬಿಐ ಮತ್ತು ಇತರ ಗೇಟ್‌ವೇಗಳಿಗೆ ತುರ್ತು ಮುನ್ನೆಚ್ಚರಿಕೆ ನೋಟಿಸ್ ಜಾರಿ ಮಾಡಿ." : "Issue urgent freeze notice to SBI and intermediary gateways for the suspect's bank account nodes.",
+      isKannada ? "ವರದಿಯಾದ ಅಪರಾಧ ನಡೆದ ಸ್ಥಳದ ಸಮೀಪವಿರುವ ಎಟಿಎಂ ಮತ್ತು ಜಂಕ್ಷನ್‌ಗಳಿಂದ ಸಿಸಿಟಿವಿ ದೃಶ್ಯಾವಳಿ ಸಂಗ್ರಹಿಸಿ." : "Collect high-resolution CCTV footage from intersections and ATMs near the reported crime scene.",
+      isKannada ? "ಮೊಬೈಲ್ ಆಪರೇಟರ್‌ನೊಂದಿಗೆ ಸಿಮ್ ಕಾರ್ಡ್ ಮಾಲೀಕರ ಕೆವೈಸಿ ವಿವರಗಳನ್ನು ಪರಿಶೀಲಿಸಿ." : "Verify SIM card cardholder KYC details with the respective telecom operator.",
+      isKannada ? "ಟೋಲ್ ಚೆಕ್‌ಪಾಯಿಂಟ್‌ಗಳಲ್ಲಿ ಶಂಕಿತ ವಾಹನದ ಓಡಾಟಕ್ಕಾಗಿ ಫಾಸ್ಟ್ಯಾಗ್ ಲಾಗ್ ಇತಿಹಾಸವನ್ನು ವಿಶ್ಲೇಷಿಸಿ." : "Analyze FastTag log history for suspect vehicle coordinates across toll checkpoints."
     ];
-    let reasoning = "Based on local intelligence profiling, the modus operandi points to an organized network of operators spanning multiple jurisdictions. Financial transactions and communications logs should be prioritized.";
+    let reasoning = isKannada 
+      ? "ಸ್ಥಳೀಯ ತನಿಖಾ ಮಾಹಿತಿಯ ಆಧಾರದ ಮೇಲೆ, ಕಾರ್ಯವಿಧಾನವು ಬಹು ನ್ಯಾಯವ್ಯಾಪ್ತಿಗಳನ್ನು ವ್ಯಾಪಿಸಿರುವ ಸಂಘಟಿತ ಜಾಲವನ್ನು ತೋರಿಸುತ್ತದೆ. ಹಣಕಾಸಿನ ವಹಿವಾಟುಗಳು ಮತ್ತು ಸಂವಹನ ಲಾಗ್‌ಗಳಿಗೆ ಆದ್ಯತೆ ನೀಡಬೇಕು."
+      : "Based on local intelligence profiling, the modus operandi points to an organized network of operators spanning multiple jurisdictions. Financial transactions and communications logs should be prioritized.";
     let confidence = 85;
-    let evidence = ["CCTNS Node DB Reference", "Victim Statement", "Mule Accounts Ledger"];
+    let evidence = isKannada ? ["ಸಿ‌ಸಿ‌ಟಿ‌ಎನ್ಎಸ್ ನೋಡ್ ಡೇಟಾಬೇಸ್ ಉಲ್ಲೇಖ", "ದೂರುದಾರರ ಹೇಳಿಕೆ", "ಮೂಲ್ ಖಾತೆಗಳ ಲೆಡ್ಜರ್"] : ["CCTNS Node DB Reference", "Victim Statement", "Mule Accounts Ledger"];
 
     if (contextData.fir) {
       const f = contextData.fir;
       if (f.crimeCategory === "Cyber Crime") {
         recommendations = [
-          `Issue immediate Section 106 BNSS notice to bank nodes involved in the transfer to freeze destination accounts.`,
-          `Query telecom databases for subscriber details of the scammer's reported phone line (+91 9886012345).`,
-          `Verify IP logs of suspicious session access times against the server audit registers.`,
-          `Analyze beneficiary transaction logs for multi-layered money transfer accounts.`,
-          `Submit formal request to the Cyber Crime forensic unit for phishing link tracing.`
+          isKannada ? "ವರ್ಗಾವಣೆ ಒಳಗೊಂಡಿರುವ ಬ್ಯಾಂಕ್ ನೋಡ್‌ಗಳಿಗೆ ಖಾತೆಗಳನ್ನು ತಕ್ಷಣ ಸ್ಥಗಿತಗೊಳಿಸಲು ನೋಟಿಸ್ ಜಾರಿ ಮಾಡಿ." : `Issue immediate Section 106 BNSS notice to bank nodes involved in the transfer to freeze destination accounts.`,
+          isKannada ? "ವರದಿಯಾದ ಶಂಕಿತರ ಫೋನ್ ಸಂಖ್ಯೆಯ ಚಂದಾದಾರರ ವಿವರಗಳಿಗಾಗಿ ಟೆಲಿಕಾಂ ಡೇಟಾಬೇಸ್ ಅನ್ನು ಪ್ರಶ್ನಿಸಿ." : `Query telecom databases for subscriber details of the scammer's reported phone line (+91 9886012345).`,
+          isKannada ? "ಸಿಸ್ಟಮ್ ಆಡಿಟ್ ರೆಜಿಸ್ಟರ್‌ಗಳ ವಿರುದ್ಧ ಶಂಕಾಸ್ಪದ ಲಾಗಿನ್ ಸೆಷನ್‌ಗಳ ಐಪಿ ಲಾಗ್‌ಗಳನ್ನು ಪರಿಶೀಲಿಸಿ." : `Verify IP logs of suspicious session access times against the server audit registers.`,
+          isKannada ? "ಬಹು-ಪದರದ ಹಣ ವರ್ಗಾವಣೆ ಖಾತೆಗಳ ಫಲಾನುಭವಿ ವಹಿವಾಟು ಲಾಗ್‌ಗಳನ್ನು ವಿಶ್ಲೇಷಿಸಿ." : `Analyze beneficiary transaction logs for multi-layered money transfer accounts.`,
+          isKannada ? "ಫಿಶಿಂಗ್ ಲಿಂಕ್ ಪತ್ತೆಹಚ್ಚಲು ಸೈಬರ್ ಕ್ರೈಮ್ ಫೋರೆನ್ಸಿಕ್ ಘಟಕಕ್ಕೆ ಔಪಚಾರಿಕ ವಿನಂತಿಯನ್ನು ಸಲ್ಲಿಸಿ." : `Submit formal request to the Cyber Crime forensic unit for phishing link tracing.`
         ];
-        reasoning = `The phishing signature of case ${f.firNumber} matches multi-layered fraudulent withdrawal systems. Immediate financial freezing is necessary to minimize capital loss.`;
+        reasoning = isKannada
+          ? `ಪ್ರಕರಣ ${f.firNumber} ರ ಫಿಶಿಂಗ್ ಮಾದರಿಯು ಹಣಕಾಸಿನ ವಂಚನೆಯನ್ನು ಸೂಚಿಸುತ್ತದೆ. ನಷ್ಟವನ್ನು ಕಡಿಮೆ ಮಾಡಲು ತಕ್ಷಣದ ಹಣಕಾಸು ಮುನ್ನೆಚ್ಚರಿಕೆ ಅಗತ್ಯವಿದೆ.`
+          : `The phishing signature of case ${f.firNumber} matches multi-layered fraudulent withdrawal systems. Immediate financial freezing is necessary to minimize capital loss.`;
         confidence = 92;
-        evidence = [`FIR Category: ${f.crimeCategory}`, `IPC/BNS Sections: ${f.ipcSections}`];
+        evidence = isKannada ? [`ಎಫ್‌ಐಆರ್ ವರ್ಗ: ${f.crimeCategory}`, `IPC/BNS ಸೆಕ್ಷನ್‌ಗಳು: ${f.ipcSections}`] : [`FIR Category: ${f.crimeCategory}`, `IPC/BNS Sections: ${f.ipcSections}`];
       } else if (f.crimeCategory === "Financial Fraud") {
         recommendations = [
           `Liaise with financial agencies (FIU/ED) to map downstream routing trails.`,

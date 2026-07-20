@@ -3,7 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import opencityStatsData from "./opencity-crime-stats-2025.json";
 import { FIR, Accused, Victim, Witness, Evidence, Vehicle, Phone, FinancialTransaction, AuditLog, User, UserRole, NetworkNode, NetworkLink, NetworkGraph, ForecastReport } from "./types";
+import { initFirebase, fetchCollectionFromFirebase, saveDocumentToFirebase, syncSeedsToFirestore, getFirestoreStatus } from "./firebaseService.js";
 
 // Master Police Stations in Karnataka
 export const POLICE_STATIONS = [
@@ -135,6 +137,20 @@ export const SEED_FIRS: FIR[] = [
     description: "Ransomware locked the local billing servers of a prominent Mysuru hospital, demanding 1.5 Bitcoins. Investigation traced IP addresses to proxies. Server decrypted using backups.",
     investigatingOfficer: "Dr. Ananya Patil",
     evidenceCount: 4,
+  },
+  {
+    id: "FIR-2026-006",
+    firNumber: "FIR/0312/2026",
+    policeStation: "Koramangala Police Station",
+    district: "Bengaluru City",
+    dateFiled: "2026-07-15",
+    crimeCategory: "Cyber Crime",
+    subCategory: "Deepfake Video Impersonation",
+    ipcSections: "BNS 318 (Cheating), IT Act Section 66D",
+    status: "Under Investigation",
+    description: "Fraudsters used a real-time AI-generated deepfake video call mimicking a multinational corporate CFO to trick local finance staff into executing an urgent ₹45 Lakh wire transfer to shell banking channels.",
+    investigatingOfficer: "Dr. Ananya Patil",
+    evidenceCount: 2,
   },
 ];
 
@@ -449,8 +465,10 @@ export class CrimeDatabase {
   private phones: Phone[] = [...SEED_PHONES];
   private transactions: FinancialTransaction[] = [...SEED_TRANSACTIONS];
   private auditLogs: AuditLog[] = [];
+  private stateStats: any[] = [];
 
   constructor() {
+    this.loadStateStats();
     // Generate initial audit logs
     this.logAction(
       "System",
@@ -458,10 +476,115 @@ export class CrimeDatabase {
       UserRole.ADMIN,
       "System Startup & Seed Data Load",
       "SELECT * FROM state_police_databases",
-      "firs, accused, victims, witnesses, evidence, transactions",
-      25,
+      "firs, accused, victims, witnesses, evidence, transactions, state_stats",
+      676,
       "127.0.0.1"
     );
+    // Only synchronize with Firebase on the server-side to avoid client-side connection spam
+    if (typeof window === "undefined") {
+      this.syncWithFirebase();
+    }
+  }
+
+  async syncWithFirebase() {
+    try {
+      console.log("🔄 Starting Firebase data sync...");
+      const { db } = initFirebase();
+      if (!db) {
+        console.warn("⚠️ Firebase DB could not be initialized. Operating in local memory-only mode.");
+        return;
+      }
+
+      // 1. Seed collections if empty, otherwise load from Firebase
+      if (getFirestoreStatus().enabled) await syncSeedsToFirestore("firs", SEED_FIRS);
+      if (getFirestoreStatus().enabled) await syncSeedsToFirestore("accused", SEED_ACCUSED);
+      if (getFirestoreStatus().enabled) await syncSeedsToFirestore("victims", SEED_VICTIMS);
+      if (getFirestoreStatus().enabled) await syncSeedsToFirestore("witnesses", SEED_WITNESSES);
+      if (getFirestoreStatus().enabled) await syncSeedsToFirestore("evidence", SEED_EVIDENCE);
+      if (getFirestoreStatus().enabled) await syncSeedsToFirestore("vehicles", SEED_VEHICLES);
+      if (getFirestoreStatus().enabled) await syncSeedsToFirestore("phones", SEED_PHONES);
+      if (getFirestoreStatus().enabled) await syncSeedsToFirestore("transactions", SEED_TRANSACTIONS);
+      if (getFirestoreStatus().enabled) await syncSeedsToFirestore("state_stats", opencityStatsData);
+
+      if (!getFirestoreStatus().enabled) {
+        console.warn("⚠️ Firebase synchronization halted during seeding checks due to offline fallback mode.");
+        return;
+      }
+
+      console.log("📁 Firebase seeding checks complete.");
+
+      // 2. Fetch records from Firebase to overwrite/augment local in-memory records
+      if (!getFirestoreStatus().enabled) return;
+      const fbFirs = await fetchCollectionFromFirebase("firs");
+      if (fbFirs && fbFirs.length > 0) {
+        this.firs = fbFirs;
+        console.log(`📥 Loaded ${fbFirs.length} FIRs from Firebase.`);
+      }
+
+      if (!getFirestoreStatus().enabled) return;
+      const fbAccused = await fetchCollectionFromFirebase("accused");
+      if (fbAccused && fbAccused.length > 0) {
+        this.accused = fbAccused;
+        console.log(`📥 Loaded ${fbAccused.length} accused from Firebase.`);
+      }
+
+      if (!getFirestoreStatus().enabled) return;
+      const fbVictims = await fetchCollectionFromFirebase("victims");
+      if (fbVictims && fbVictims.length > 0) {
+        this.victims = fbVictims;
+      }
+
+      if (!getFirestoreStatus().enabled) return;
+      const fbWitnesses = await fetchCollectionFromFirebase("witnesses");
+      if (fbWitnesses && fbWitnesses.length > 0) {
+        this.witnesses = fbWitnesses;
+      }
+
+      if (!getFirestoreStatus().enabled) return;
+      const fbEvidence = await fetchCollectionFromFirebase("evidence");
+      if (fbEvidence && fbEvidence.length > 0) {
+        this.evidence = fbEvidence;
+      }
+
+      if (!getFirestoreStatus().enabled) return;
+      const fbVehicles = await fetchCollectionFromFirebase("vehicles");
+      if (fbVehicles && fbVehicles.length > 0) {
+        this.vehicles = fbVehicles;
+      }
+
+      if (!getFirestoreStatus().enabled) return;
+      const fbPhones = await fetchCollectionFromFirebase("phones");
+      if (fbPhones && fbPhones.length > 0) {
+        this.phones = fbPhones;
+      }
+
+      if (!getFirestoreStatus().enabled) return;
+      const fbTransactions = await fetchCollectionFromFirebase("transactions");
+      if (fbTransactions && fbTransactions.length > 0) {
+        this.transactions = fbTransactions;
+      }
+
+      if (!getFirestoreStatus().enabled) return;
+      const fbStateStats = await fetchCollectionFromFirebase("state_stats");
+      if (fbStateStats && fbStateStats.length > 0) {
+        this.stateStats = fbStateStats;
+      }
+
+      if (!getFirestoreStatus().enabled) return;
+      const fbAuditLogs = await fetchCollectionFromFirebase("audit_logs");
+      if (fbAuditLogs && fbAuditLogs.length > 0) {
+        this.auditLogs = fbAuditLogs;
+      }
+
+      console.log("✅ Firebase synchronization complete. State-of-the-art live database sync enabled.");
+    } catch (error) {
+      console.error("❌ Error in syncWithFirebase:", error);
+    }
+  }
+
+  private loadStateStats() {
+    this.stateStats = opencityStatsData;
+    console.log(`Successfully loaded ${this.stateStats.length} OpenCity state stats records into CrimeDatabase active memory registry.`);
   }
 
   // Get full lists
@@ -473,7 +596,9 @@ export class CrimeDatabase {
   getVehicles() { return this.vehicles; }
   getPhones() { return this.phones; }
   getTransactions() { return this.transactions; }
+  getStateStats() { return this.stateStats; }
   getAuditLogs() { return this.auditLogs.slice(-100).reverse(); } // return last 100
+  getFirebaseStatus() { return getFirestoreStatus(); }
 
   // Log action
   logAction(
@@ -500,6 +625,8 @@ export class CrimeDatabase {
       ipAddress,
     };
     this.auditLogs.push(newLog);
+    // Save to Firebase asynchronously
+    saveDocumentToFirebase("audit_logs", newLog.id, newLog);
     return newLog;
   }
 
@@ -793,7 +920,7 @@ export class CrimeDatabase {
 
   // Legacy data ingestion / import utility
   importLegacyData(
-    type: "firs" | "accused" | "evidence" | "transactions" | "vehicles" | "phones",
+    type: "firs" | "accused" | "evidence" | "transactions" | "vehicles" | "phones" | "state_stats",
     records: any[]
   ): { importedCount: number; errors: string[] } {
     const errors: string[] = [];
@@ -829,6 +956,7 @@ export class CrimeDatabase {
             evidenceCount: Number(rec.evidenceCount) || 0
           };
           this.firs.unshift(newFir);
+          saveDocumentToFirebase("firs", newFir.id, newFir);
           importedCount++;
         } else if (type === "accused") {
           if (!rec.name || !rec.modusOperandi) {
@@ -854,6 +982,7 @@ export class CrimeDatabase {
             photoUrl: rec.photoUrl || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200"
           };
           this.accused.unshift(newAccused);
+          saveDocumentToFirebase("accused", newAccused.id, newAccused);
           importedCount++;
         } else if (type === "evidence") {
           if (!rec.firId || !rec.description || !rec.type) {
@@ -871,6 +1000,7 @@ export class CrimeDatabase {
             status: rec.status || "Secured"
           };
           this.evidence.unshift(newEvidence);
+          saveDocumentToFirebase("evidence", newEvidence.id, newEvidence);
           importedCount++;
         } else if (type === "transactions") {
           if (!rec.sourceAccount || !rec.destAccount || !rec.amount) {
@@ -892,6 +1022,7 @@ export class CrimeDatabase {
             flagReason: rec.flagReason
           };
           this.transactions.unshift(newTx);
+          saveDocumentToFirebase("transactions", newTx.id, newTx);
           importedCount++;
         } else if (type === "vehicles") {
           if (!rec.registrationNumber || !rec.make || !rec.model) {
@@ -909,6 +1040,7 @@ export class CrimeDatabase {
             linkedFIRs: Array.isArray(rec.linkedFIRs) ? rec.linkedFIRs : []
           };
           this.vehicles.unshift(newVeh);
+          saveDocumentToFirebase("vehicles", newVeh.id, newVeh);
           importedCount++;
         } else if (type === "phones") {
           if (!rec.phoneNumber || !rec.imei || !rec.ownerName) {
@@ -924,6 +1056,21 @@ export class CrimeDatabase {
             linkedFIRs: Array.isArray(rec.linkedFIRs) ? rec.linkedFIRs : []
           };
           this.phones.unshift(newPhone);
+          saveDocumentToFirebase("phones", newPhone.id, newPhone);
+          importedCount++;
+        } else if (type === "state_stats") {
+          if (!rec["Heads of Crime"]) {
+            throw new Error(`Missing required fields: Heads of Crime`);
+          }
+          const id = rec._id || Date.now() + idx;
+          const newStat = {
+            _id: id,
+            "Sl. No.": rec["Sl. No."] || String(this.stateStats.length + 1),
+            "Heads of Crime": rec["Heads of Crime"],
+            "For 2025": rec["For 2025"] ? String(rec["For 2025"]) : "0"
+          };
+          this.stateStats.unshift(newStat);
+          saveDocumentToFirebase("state_stats", String(id), newStat);
           importedCount++;
         }
       } catch (err: any) {

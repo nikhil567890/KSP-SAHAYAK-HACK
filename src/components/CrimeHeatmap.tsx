@@ -4,9 +4,53 @@ import { FIR } from "../types";
 
 interface CrimeHeatmapProps {
   firs: FIR[];
+  language?: "English" | "Kannada";
 }
 
-export function CrimeHeatmap({ firs }: CrimeHeatmapProps) {
+const TRANSLATIONS = {
+  English: {
+    title: "GIS Geographic Intelligence Module",
+    badge: "Pred Pol v4.0",
+    subtitle: "Predictive Spatial Engine // Real-Time Patrol Overlay",
+    spatialFilters: "Spatial Filters",
+    policeDistrict: "Police District",
+    allDistricts: "All Districts",
+    crimeCategory: "Crime Category",
+    allCategories: "All Categories",
+    forecastHeatZones: "Forecast Heat Zones",
+    patrolRecommendations: "Patrol Recommendations",
+    patrolTitle: "Patrol Recommendations",
+    resourceDeployment: "Resource deployment check",
+    resourceDeploymentDesc: "Submit patrol deployment commands to HQ central control with one-click dispatch verification codes.",
+    mapOffline: "Leaflet Map Engine Offline",
+    mapOfflineDesc: "Unable to reach unpkg CDN for OpenStreetMap rendering. Verify connection parameters or proxy controls.",
+    loadingMap: "Loading Geospatial Leaflet Engine...",
+    coordinatesCount: "Total Visualized Coordinates",
+    activeHotspots: "Active Hotspots Loaded"
+  },
+  Kannada: {
+    title: "ಜಿಐಎಸ್ ಭೌಗೋಳಿಕ ತೀವ್ರತೆಯ ನಕ್ಷೆ",
+    badge: "ಪ್ರೆಡ್ ಪೋಲ್ v4.0",
+    subtitle: "ಸ್ಥಳೀಯ ಅಪರಾಧ ಸಾಂದ್ರತೆಯ ಓವರ್ಲೇ // ನೈಜ-ಸಮಯದ ಘಟನೆಗಳ ಕ್ಲಸ್ಟರಿಂಗ್",
+    spatialFilters: "ಸ್ಥಳೀಯ ಫಿಲ್ಟರ್‌ಗಳು",
+    policeDistrict: "ಪೊಲೀಸ್ ಜಿಲ್ಲೆ",
+    allDistricts: "ಎಲ್ಲಾ ಜಿಲ್ಲೆಗಳು",
+    crimeCategory: "ಅಪರಾಧದ ವರ್ಗ",
+    allCategories: "ಎಲ್ಲಾ ವರ್ಗಗಳು",
+    forecastHeatZones: "ಮುನ್ಸೂಚನೆ ತೀವ್ರತೆಯ ವಲಯಗಳು",
+    patrolRecommendations: "ಗಸ್ತು ಶಿಫಾರಸುಗಳು",
+    patrolTitle: "ಸ್ಥಳೀಯ ಗಸ್ತು ಶಿಫಾರಸುಗಳ ಫಲಕ",
+    resourceDeployment: "ಸಂಪನ್ಮೂಲ ನಿಯೋಜನೆ ಪರಿಶೀಲನೆ",
+    resourceDeploymentDesc: "ಒನ್-ಕ್ಲಿಕ್ ರವಾನೆ ಪರಿಶೀಲನಾ ಕೋಡ್‌ಗಳೊಂದಿಗೆ ಪ್ರಧಾನ ಕಚೇರಿಯ ಕೇಂದ್ರ ನಿಯಂತ್ರಣಕ್ಕೆ ಗಸ್ತು ನಿಯೋಜನೆ ಆಜ್ಞೆಗಳನ್ನು ಸಲ್ಲಿಸಿ.",
+    mapOffline: "ಲೀವ್ಲೆಟ್ ಮ್ಯಾಪ್ ಇಂಜಿನ್ ಆಫ್ಲೈನ್ ಆಗಿದೆ",
+    mapOfflineDesc: "ನಕ್ಷೆ ಚಿತ್ರಣಕ್ಕಾಗಿ unpkg CDN ಅನ್ನು ತಲುಪಲು ಸಾಧ್ಯವಾಗುತ್ತಿಲ್ಲ. ಸಂಪರ್ಕ ನಿಯತಾಂಕಗಳನ್ನು ಪರಿಶೀಲಿಸಿ.",
+    loadingMap: "ಭೌಗೋಳಿಕ ಲೀವ್ಲೆಟ್ ಇಂಜಿನ್ ಲೋಡ್ ಆಗುತ್ತಿದೆ...",
+    coordinatesCount: "ಒಟ್ಟು ದೃಶ್ಯೀಕರಿಸಿದ ನಿರ್ದೇಶಾಂಕಗಳು",
+    activeHotspots: "ಸಕ್ರಿಯ ಹಾಟ್‌ಸ್ಪಾಟ್‌ಗಳನ್ನು ಲೋಡ್ ಮಾಡಲಾಗಿದೆ"
+  }
+};
+
+export function CrimeHeatmap({ firs, language = "English" }: CrimeHeatmapProps) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any | null>(null);
   const [selectedDistrict, setSelectedDistrict] = useState<string>("All");
@@ -14,6 +58,8 @@ export function CrimeHeatmap({ firs }: CrimeHeatmapProps) {
   const [showForecastOverlay, setShowForecastOverlay] = useState<boolean>(true);
   const [mapLoaded, setMapLoaded] = useState<boolean>(false);
   const [leafletLoadingError, setLeafletLoadingError] = useState<boolean>(false);
+
+  const L_LANG = TRANSLATIONS[language];
 
   // Hardcoded coordinate mapping for seed stations
   const locationCoordinates: Record<string, { lat: number; lng: number; weight: number }> = {
@@ -65,67 +111,64 @@ export function CrimeHeatmap({ firs }: CrimeHeatmapProps) {
     loadLeaflet();
 
     return () => {
-      // Keep CDN script cached globally to avoid re-loads, but clean up references if needed
+      if (cssLink && document.head.contains(cssLink)) {
+        document.head.removeChild(cssLink);
+      }
+      if (jsScript && document.body.contains(jsScript)) {
+        document.body.removeChild(jsScript);
+      }
     };
   }, []);
 
-  // Initialize and update Map Layer
+  // Map configuration and initialization
   useEffect(() => {
     if (!mapLoaded || !mapContainerRef.current) return;
 
     const L = (window as any).L;
     if (!L) return;
 
-    // Destroy existing instance to re-initialize
+    // Destroy existing map instance to prevent leaks on tab switches
     if (mapInstanceRef.current) {
       mapInstanceRef.current.remove();
       mapInstanceRef.current = null;
     }
 
     try {
-      const map = L.map(mapContainerRef.current).setView([defaultCenter.lat, defaultCenter.lng], 11);
-      mapInstanceRef.current = map;
-
-      // Premium CartoDB Dark Matter / Midnight Tiles for high-security theme
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-        subdomains: 'abcd',
-        maxZoom: 20
-      }).addTo(map);
-
-      // Filter FIRs based on choices
-      const filteredFirs = firs.filter(f => {
-        const matchDistrict = selectedDistrict === "All" || f.district === selectedDistrict;
-        const matchCategory = selectedCategory === "All" || f.crimeCategory === selectedCategory;
-        return matchDistrict && matchCategory;
+      const map = L.map(mapContainerRef.current, {
+        center: [defaultCenter.lat, defaultCenter.lng],
+        zoom: 12,
+        zoomControl: true,
+        attributionControl: false
       });
 
-      // Render custom pins & tooltips
+      mapInstanceRef.current = map;
+
+      // Dark Mode Map tiles for clean, tactical aesthetic
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+        maxZoom: 19
+      }).addTo(map);
+
+      // Filter and render FIR incident pin nodes
+      const filteredFirs = firs.filter(f => {
+        const matchesDistrict = selectedDistrict === "All" || f.policeStation.includes(selectedDistrict.split(" ")[0]);
+        const matchesCategory = selectedCategory === "All" || f.crimeCategory === selectedCategory;
+        return matchesDistrict && matchesCategory;
+      });
+
+      // Custom icon mapping for tactical display
+      const customIcon = L.icon({
+        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+        iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+        iconSize: [20, 32],
+        iconAnchor: [10, 32],
+        popupAnchor: [1, -26],
+        shadowSize: [32, 32]
+      });
+
       filteredFirs.forEach(f => {
         const coords = locationCoordinates[f.policeStation] || defaultCenter;
         
-        // Decide marker color based on crime severity
-        let markerColor = "#ef4444"; // Red (default)
-        if (f.crimeCategory === "Cyber Crime") markerColor = "#3b82f6"; // Blue
-        if (f.crimeCategory === "Financial Fraud") markerColor = "#f59e0b"; // Orange
-        if (f.crimeCategory === "Robbery") markerColor = "#e11d48"; // Rose
-
-        // Custom pulsing SVG marker
-        const customIcon = L.divIcon({
-          className: "custom-map-icon",
-          html: `<div style="
-            width: 14px; 
-            height: 14px; 
-            background-color: ${markerColor}; 
-            border: 2px solid white; 
-            border-radius: 50%; 
-            box-shadow: 0 0 10px ${markerColor};
-            animation: pulse-marker 1.5s infinite;
-          "></div>`,
-          iconSize: [14, 14],
-          iconAnchor: [7, 7]
-        });
-
         const popupContent = `
           <div style="font-family: sans-serif; color: #1e293b; padding: 4px; min-width: 180px;">
             <p style="margin: 0; font-size: 10px; font-weight: 700; color: #2563eb; text-transform: uppercase;">${f.crimeCategory}</p>
@@ -165,7 +208,20 @@ export function CrimeHeatmap({ firs }: CrimeHeatmapProps) {
     }
   }, [mapLoaded, selectedDistrict, selectedCategory, showForecastOverlay, firs]);
 
-  const recommendedDeployments = [
+  const recommendedDeployments = language === "Kannada" ? [
+    {
+      location: "ಮೆಜೆಸ್ಟಿಕ್ ಜಂಕ್ಷನ್ ಬ್ಲಾಕ್",
+      reason: "ರಾತ್ರಿ ೨೦:೦೦ ರಿಂದ ೨೩:೦೦ ರ ನಡುವೆ ಸರಗಳ್ಳತನದ ಹೆಚ್ಚಿನ ಭೀತಿ ಸೂಚ್ಯಂಕ ಮುನ್ಸೂಚನೆ ನೀಡಲಾಗಿದೆ.",
+      action: "೨ ಹೆಚ್ಚುವರಿ ಚೀತಾ ಗಸ್ತು ಘಟಕಗಳನ್ನು ನಿಯೋಜಿಸಿ ಮತ್ತು ಮೊಬೈಲ್ ಚೆಕ್‌ಪಾಯಿಂಟ್‌ಗಳನ್ನು ಸಕ್ರಿಯಗೊಳಿಸಿ.",
+      threat: "ಅಪಾಯಕಾರಿ (೯೪/೧೦೦)"
+    },
+    {
+      location: "ಕೋರಮಂಗಲ ೪ನೇ ಬ್ಲಾಕ್",
+      reason: "ಸಾಮಾಜಿಕ-ಡಿಜಿಟಲ್ ಜಾಡು ಸೈಬರ್ ವಂಚನೆ ಕಾರ್ಯಾಚರಣೆಯ ಕೇಂದ್ರವನ್ನು ಸೂಚಿಸುತ್ತದೆ.",
+      action: "ಸೈಬರ್ ಕ್ರೈಮ್ ವಿಭಾಗದ ನಿಗಾ ಮತ್ತು ತಪಾಸಣೆ ಅಗತ್ಯವಿದೆ.",
+      threat: "ಮಧ್ಯಮ (೭೨/೧೦೦)"
+    }
+  ] : [
     {
       location: "Majestic Junction Block",
       reason: "High threat score predicted for snatching between 20:00 and 23:00.",
@@ -190,12 +246,12 @@ export function CrimeHeatmap({ firs }: CrimeHeatmapProps) {
           </div>
           <div>
             <h2 className="text-sm font-bold text-slate-100 flex items-center gap-1.5">
-              GIS Geographic Intelligence Module
+              {L_LANG.title}
               <span className="px-2 py-0.5 text-[9px] font-black bg-rose-500/20 text-rose-300 rounded border border-rose-500/30 uppercase tracking-wider">
-                Pred Pol v4.0
+                {L_LANG.badge}
               </span>
             </h2>
-            <p className="text-[10px] text-slate-400 font-medium">Predictive Spatial Engine // Real-Time Patrol Overlay</p>
+            <p className="text-[10px] text-slate-400 font-medium">{L_LANG.subtitle}</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -206,7 +262,7 @@ export function CrimeHeatmap({ firs }: CrimeHeatmapProps) {
             }`}
           >
             <Layers className="w-3 h-3" />
-            Forecast Heat Zones
+            {L_LANG.forecastHeatZones}
           </button>
         </div>
       </div>
@@ -218,16 +274,16 @@ export function CrimeHeatmap({ firs }: CrimeHeatmapProps) {
             <div className="space-y-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
                 <Filter className="w-3.5 h-3.5 text-blue-400" />
-                Spatial Filters
+                {L_LANG.spatialFilters}
               </span>
               <div>
-                <label className="text-[10px] font-semibold text-slate-500 block mb-1">Police District</label>
+                <label className="text-[10px] font-semibold text-slate-500 block mb-1">{L_LANG.policeDistrict}</label>
                 <select
                   value={selectedDistrict}
                   onChange={(e) => setSelectedDistrict(e.target.value)}
                   className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none"
                 >
-                  <option value="All">All Districts</option>
+                  <option value="All">{L_LANG.allDistricts}</option>
                   <option value="Bengaluru City">Bengaluru City</option>
                   <option value="Mysuru City">Mysuru City</option>
                   <option value="Mangaluru City">Mangaluru City</option>
@@ -235,13 +291,13 @@ export function CrimeHeatmap({ firs }: CrimeHeatmapProps) {
               </div>
 
               <div className="pt-2">
-                <label className="text-[10px] font-semibold text-slate-500 block mb-1">Crime Category</label>
+                <label className="text-[10px] font-semibold text-slate-500 block mb-1">{L_LANG.crimeCategory}</label>
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
                   className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none"
                 >
-                  <option value="All">All Categories</option>
+                  <option value="All">{L_LANG.allCategories}</option>
                   <option value="Cyber Crime">Cyber Crime</option>
                   <option value="Financial Fraud">Financial Fraud</option>
                   <option value="Robbery">Robbery</option>
@@ -250,23 +306,22 @@ export function CrimeHeatmap({ firs }: CrimeHeatmapProps) {
               </div>
             </div>
 
-            <div className="p-3.5 bg-slate-900/60 border border-slate-800 rounded-xl space-y-2">
-              <h4 className="text-[11px] font-bold text-slate-200 flex items-center gap-1">
-                <Compass className="w-3.5 h-3.5 text-red-400" />
-                Predictive Heat Engine
-              </h4>
-              <p className="text-[10px] text-slate-400 leading-relaxed">
-                The PredPol engine computes space-time incident clustering patterns by analyzing historical CCTNS databases, weather, and localized calendars.
-              </p>
-              <div className="pt-1.5 flex items-center justify-between text-[9px] text-slate-500 font-bold">
-                <span>Model Loss: 0.042</span>
-                <span>Accuracy: 91.8%</span>
+            {/* Geographical Stats Panel */}
+            <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl space-y-3.5">
+              <div>
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">{L_LANG.coordinatesCount}</span>
+                <div className="text-xl font-black text-slate-100 font-mono">
+                  {Object.keys(locationCoordinates).length} Node Pins
+                </div>
+              </div>
+              <div className="border-t border-slate-800/80 pt-2.5">
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">{L_LANG.activeHotspots}</span>
+                <div className="text-sm font-extrabold text-red-400 flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse block"></span>
+                  4 Overlays Detected
+                </div>
               </div>
             </div>
-          </div>
-
-          <div className="text-[9px] text-slate-500 border-t border-slate-800 pt-3">
-            📍 Maps provided by OpenStreetMap. Live CCTNS telemetry synchronization enabled.
           </div>
         </div>
 
@@ -275,15 +330,15 @@ export function CrimeHeatmap({ firs }: CrimeHeatmapProps) {
           {leafletLoadingError ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950 p-6 text-center space-y-3">
               <ShieldAlert className="w-10 h-10 text-red-500" />
-              <p className="text-xs font-bold text-slate-300">Leaflet Map Engine Offline</p>
+              <p className="text-xs font-bold text-slate-300">{L_LANG.mapOffline}</p>
               <p className="text-[10px] text-slate-500 max-w-sm">
-                Unable to reach unpkg CDN for OpenStreetMap rendering. Verify connection parameters or proxy controls.
+                {L_LANG.mapOfflineDesc}
               </p>
             </div>
           ) : !mapLoaded ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950 space-y-3">
               <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
-              <p className="text-xs font-bold text-slate-400">Loading Geospatial Leaflet Engine...</p>
+              <p className="text-xs font-bold text-slate-400">{L_LANG.loadingMap}</p>
             </div>
           ) : null}
 
@@ -296,7 +351,7 @@ export function CrimeHeatmap({ firs }: CrimeHeatmapProps) {
           <div className="space-y-4">
             <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-800 pb-2">
               <Navigation className="w-4 h-4 text-emerald-400" />
-              Patrol Recommendations
+              {L_LANG.patrolRecommendations}
             </h3>
             <div className="space-y-3">
               {recommendedDeployments.map((dep, index) => (
@@ -307,10 +362,10 @@ export function CrimeHeatmap({ firs }: CrimeHeatmapProps) {
                       {dep.threat}
                     </span>
                   </div>
-                  <p className="text-[10px] text-slate-400 leading-relaxed">{dep.reason}</p>
+                  <p className="text-[10px] text-slate-400 leading-relaxed text-justify">{dep.reason}</p>
                   <div className="p-2 bg-emerald-950/20 border border-emerald-900/30 rounded text-[10px] text-emerald-300 font-semibold flex items-start gap-1">
                     <span className="text-emerald-400 shrink-0">⚡</span>
-                    <span>{dep.action}</span>
+                    <span className="text-justify">{dep.action}</span>
                   </div>
                 </div>
               ))}
@@ -318,9 +373,9 @@ export function CrimeHeatmap({ firs }: CrimeHeatmapProps) {
           </div>
 
           <div className="p-3 bg-blue-950/20 border border-blue-900/30 rounded-xl mt-4">
-            <p className="text-[9px] text-blue-400 font-bold uppercase tracking-wider mb-1">Resource deployment check</p>
-            <p className="text-[10px] text-blue-300">
-              Submit patrol deployment commands to HQ central control with one-click dispatch verification codes.
+            <p className="text-[9px] text-blue-400 font-bold uppercase tracking-wider mb-1">{L_LANG.resourceDeployment}</p>
+            <p className="text-[10px] text-blue-300 text-justify">
+              {L_LANG.resourceDeploymentDesc}
             </p>
           </div>
         </div>

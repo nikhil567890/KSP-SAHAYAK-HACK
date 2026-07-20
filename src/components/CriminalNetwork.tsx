@@ -13,7 +13,76 @@ import {
 } from "lucide-react";
 import { NetworkNode, NetworkLink } from "../types";
 
-export function CriminalNetwork() {
+interface CriminalNetworkProps {
+  language?: "English" | "Kannada";
+}
+
+const TRANSLATIONS = {
+  English: {
+    title: "Tactical Syndicate Relationship Network",
+    badge: "Graph Centrality",
+    subtitle: "Linkage Matrix // Spatial Structuring Analytics",
+    showMoneyTrail: "Show Money Trail Chain",
+    searchPlaceholder: "Search syndicate nodes...",
+    legendTitle: "Tactical Legend",
+    accusedLegend: "Accused (Suspects)",
+    financialLegend: "Financial Accounts",
+    imeiLegend: "IMEI Terminals",
+    firLegend: "FIR Case File Node",
+    tipMessage: "💡 Drag any node to reposition. Hover details will pop up. Click any node to open forensic telemetry.",
+    fiuSyncNotice: "🔒 Financial Intelligence Unit (FIU) nodes synchronized with Central Registry dockets.",
+    intelligenceDocket: "Node Intelligence Docket",
+    noNodeSelected: "No active node selected. Click on any network vertex point or suspect node to query deep CCTNS forensic dockets.",
+    centralityMetrics: "Syndicate centrality metrics",
+    centralityMetricsDesc: "High centrality nodes indicate mastermind nodes or central mules. Section 106 BNSS triggers automatic freezing on central holding nodes.",
+    degreeCentrality: "Syndicate Degree Centrality",
+    centralRiskPriority: "Central Risk Priority",
+    criticalRisk: "CRITICAL RISK",
+    observation: "OBSERVATION",
+    forensicDescription: "Forensic Description:",
+    linkedNodes: "Linked Nodes",
+    all: "All",
+    accused: "Accused",
+    bankAccount: "Bank Account",
+    phone: "Phone",
+    vehicle: "Vehicle",
+    fir: "FIR",
+    crownText: "👑 Central Node"
+  },
+  Kannada: {
+    title: "ಕಾರ್ಯತಂತ್ರದ ಸಿಂಡಿಕೇಟ್ ಸಂಬಂಧಗಳ ಜಾಲ",
+    badge: "ಗ್ರಾಫ್ ಕೇಂದ್ರತೆ",
+    subtitle: "ಲಿಂಕೇಜ್ ಮ್ಯಾಟ್ರಿಕ್ಸ್ // ಪ್ರಾದೇಶಿಕ ರಚನಾ ವಿಶ್ಲೇಷಣೆ",
+    showMoneyTrail: "ಹಣದ ಹರಿವಿನ ಸರಪಳಿ ತೋರಿಸಿ",
+    searchPlaceholder: "ಸಿಂಡಿಕೇಟ್ ನೋಡ್‌ಗಳನ್ನು ಹುಡುಕಿ...",
+    legendTitle: "ಕಾರ್ಯತಂತ್ರದ ವಿವರಣೆ",
+    accusedLegend: "ಆರೋಪಿಗಳು (ಶಂಕಿತರು)",
+    financialLegend: "ಹಣಕಾಸು ಖಾತೆಗಳು",
+    imeiLegend: "IMEI ಟರ್ಮಿನಲ್‌ಗಳು",
+    firLegend: "ಎಫ್‌ಐಆರ್ ಕೇಸ್ ಫೈಲ್ ನೋಡ್",
+    tipMessage: "💡 ಮರುಸ್ಥಾಪಿಸಲು ಯಾವುದೇ ನೋಡ್ ಅನ್ನು ಎಳೆಯಿರಿ. ಹೋವರ್ ವಿವರಗಳು ಪಾಪ್ ಅಪ್ ಆಗುತ್ತವೆ. ವಿಧಿವಿಜ್ಞಾನ ಟೆಲಿಮೆಟ್ರಿ ತೆರೆಯಲು ಯಾವುದೇ ನೋಡ್ ಕ್ಲಿಕ್ ಮಾಡಿ.",
+    fiuSyncNotice: "🔒 ಹಣಕಾಸು ಗುಪ್ತಚರ ಸಂಸ್ಥೆ (FIU) ನೋಡ್‌ಗಳು ಕೇಂದ್ರ ನೋಂದಾವಣೆ ದಸ್ತಾವೇಜಿಗೆ ಸಿಂಕ್ ಆಗಿವೆ.",
+    intelligenceDocket: "ನೋಡ್ ಗುಪ್ತಚರ ದಸ್ತಾವೇಜು",
+    noNodeSelected: "ಯಾವುದೇ ಸಕ್ರಿಯ ನೋಡ್ ಅನ್ನು ಆಯ್ಕೆ ಮಾಡಲಾಗಿಲ್ಲ. ಆಳವಾದ ಸಿ‌ಸಿ‌ಟಿ‌ಎನ್ಎಸ್ ತನಿಖೆ ನಡೆಸಲು ನೆಟ್‌ವರ್ಕ್ ನೋಡ್ ಅಥವಾ ಆರೋಪಿಯ ಐಕಾನ್ ಮೇಲೆ ಕ್ಲಿಕ್ ಮಾಡಿ.",
+    centralityMetrics: "ಸಿಂಡಿಕೇಟ್ ಕೇಂದ್ರತೆಯ ಮೆಟ್ರಿಕ್ಸ್",
+    centralityMetricsDesc: "ಹೆಚ್ಚಿನ ಕೇಂದ್ರತೆಯ ನೋಡ್‌ಗಳು ಮಾಸ್ಟರ್‌ಮೈಂಡ್ ಅಥವಾ ಪ್ರಮುಖ ಹಣ ವರ್ಗಾವಣೆದಾರರನ್ನು ಸೂಚಿಸುತ್ತವೆ. ಸೆಕ್ಷನ್ ೧೦೬ ಬಿಎನ್‌ಎಸ್‌ಎಸ್ ಕೇಂದ್ರ ಹೋಲ್ಡಿಂಗ್ ನೋಡ್‌ಗಳನ್ನು ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಫ್ರೀಜ್ ಮಾಡಲು ಪ್ರಚೋದಿಸುತ್ತದೆ.",
+    degreeCentrality: "ಸಿಂಡಿಕೇಟ್ ಲಿಂಕ್ ಕೇಂದ್ರತೆ",
+    centralRiskPriority: "ಕೇಂದ್ರ ಅಪಾಯದ ಆದ್ಯತೆ",
+    criticalRisk: "ಅಪಾಯಕಾರಿ ಅಪರಾಧಿ",
+    observation: "ನಿಗಾ ವಲಯ",
+    forensicDescription: "ವಿಧಿವಿಜ್ಞಾನ ವಿವರಣೆ:",
+    linkedNodes: "ಸಂಪರ್ಕಿತ ನೋಡ್ಗಳು",
+    all: "ಎಲ್ಲಾ",
+    accused: "ಆರೋಪಿ",
+    bankAccount: "ಬ್ಯಾಂಕ್ ಖಾತೆ",
+    phone: "ಮೊಬೈಲ್",
+    vehicle: "ವಾಹನ",
+    fir: "ಎಫ್ಐಆರ್",
+    crownText: "👑 ಕೇಂದ್ರ ನೋಡ್"
+  }
+};
+
+export function CriminalNetwork({ language = "English" }: CriminalNetworkProps) {
   // Initial beautiful seed nodes representing a multi-layered criminal syndicate
   const [nodes, setNodes] = useState<NetworkNode[]>([
     { id: "1", label: "Karthik Shettar", type: "Accused", group: "accused", details: "Prime accused, risk score: 92%. Modus operandi: phishing scam controller." },
@@ -59,16 +128,51 @@ export function CriminalNetwork() {
     "12": { x: 500, y: 230 }
   });
 
-  const [selectedNode, setSelectedNode] = useState<NetworkNode | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [showLaunderingChains, setShowLaunderingChains] = useState<boolean>(false);
-  const [zoomLevel, setZoomLevel] = useState<number>(1);
-  const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   // Drag-and-drop state variables
   const dragNodeIdRef = useRef<string | null>(null);
   const dragStartPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  const L_LANG = TRANSLATIONS[language];
+
+  // Map nodes to localized properties
+  const localizedNodes = nodes.map(node => {
+    if (language === "Kannada") {
+      let localizedType = node.type;
+      if (node.type === "Accused") localizedType = "ಆರೋಪಿ";
+      else if (node.type === "Bank Account") localizedType = "ಬ್ಯಾಂಕ್ ಖಾತೆ";
+      else if (node.type === "Phone") localizedType = "ಮೊಬೈಲ್";
+      else if (node.type === "Vehicle") localizedType = "ವಾಹನ";
+      else if (node.type === "FIR") localizedType = "ಎಫ್ಐಆರ್";
+
+      let localizedDetails = node.details;
+      if (node.id === "1") localizedDetails = "ಪ್ರಮುಖ ಆರೋಪಿ, ಅಪಾಯದ ಸ್ಕೋರ್: ೯೨%. ಕಾರ್ಯ ವಿಧಾನ: ಫಿಶಿಂಗ್ ಹಗರಣ ನಿಯಂತ್ರಕ.";
+      else if (node.id === "2") localizedDetails = "ಚಿನ್ನದ ಪೋಂಜಿ ಕಿಂಗ್‌ಪಿನ್, ಅಪಾಯದ ಸ್ಕೋರ್: ೮೮%. ಕಾರ್ಯ ವಿಧಾನ: ಕೋಟಿಗಟ್ಟಲೆ ಆಸ್ತಿ ವಂಚನೆ ಯೋಜನೆಗಳು.";
+      else if (node.id === "3") localizedDetails = "ಸರಗಳ್ಳ / ಹೆದ್ದಾರಿ ದರೋಡೆಕೋರ, ಅಪಾಯದ ಸ್ಕೋರ್: ೭೫%. ಕಾರ್ಯ ವಿಧಾನ: ಮಾರಕಾಸ್ತ್ರಗಳಿಂದ ಚಿನ್ನದ ಸರಗಳ್ಳತನ.";
+      else if (node.id === "4") localizedDetails = "ವಿಲ್ಲಾ ಸಹಾಯಕ / ನರಹತ್ಯೆ ಸಹಚರ, ಅಪಾಯದ ಸ್ಕೋರ್: ೮೫%. ಕಾರ್ಯ ವಿಧಾನ: ಮನೆಯ ಲಾಕ್ ತಿರುಚುವಿಕೆ.";
+      else if (node.id === "5") localizedDetails = "ಸಿಂಡಿಕೇಟ್ ಪ್ರಮುಖ ಹೋಲ್ಡಿಂಗ್ ಖಾತೆ. ವ್ಯವಹಾರಗಳ ಸಂರಚನೆಗಾಗಿ FIU ನಿಂದ ಧ್ವಜ ಗುರುತು ಮಾಡಲಾಗಿದೆ.";
+      else if (node.id === "6") localizedDetails = "ದ್ವಿತೀಯ ಮ್ಯೂಲ್ ಖಾತೆ, ₹೧.೫ ಲಕ್ಷ ಹಣ ಹೊಂದಿದೆ. ತ್ವರಿತ ನಗದು ಹಿಂಪಡೆಯುವಿಕೆ ನೋಡ್.";
+      else if (node.id === "7") localizedDetails = "ಮಂಗಳೂರಿನಲ್ಲಿರುವ ಮ್ಯೂಲ್ ನಗದು ಹಿಂಪಡೆಯುವಿಕೆ ನೋಡ್, ₹೧.೫ ಲಕ್ಷ ಹಣ ಹೊಂದಿದೆ.";
+      else if (node.id === "8") localizedDetails = "ಹೆಚ್ಚಿನ ಅಪಾಯದ ನಗದು ಹಿಂಪಡೆಯುವಿಕೆ ಗೇಟ್‌ವೇ ಖಾತೆ, ಸೆಕ್ಷನ್ ೧೦೬ ಬಿಎನ್‌ಎಸ್‌ಎಸ್ ಅಡಿಯಲ್ಲಿ ಫ್ರೀಜ್ ಮಾಡಲಾಗಿದೆ.";
+      else if (node.id === "9") localizedDetails = "ಕಾರ್ತಿಕ್ ಶೆಟ್ಟರ್ ಹೆಸರಿನಲ್ಲಿ ನೋಂದಾಯಿಸಲಾದ ಸಿಲ್ವರ್ ಮಾರುತಿ ಸ್ವಿಫ್ಟ್, ೪ ಅಪರಾಧ ಸ್ಥಳದ ಮಾರ್ಗಗಳಲ್ಲಿ ಪತ್ತೆಯಾಗಿದೆ.";
+      else if (node.id === "10") localizedDetails = "ಸಿಬಿಐ ಫಿಶಿಂಗ್ ಬಲಿಪಶುಗಳಿಗೆ ಕರೆ ಮಾಡಲು ಬಳಸಿದ ಸಾಧನ. ಕೋರಮಂಗಲ ಟವರ್‌ನೊಂದಿಗೆ ಸ್ಥಳ ಹೊಂದಾಣಿಕೆಯಾಗಿದೆ.";
+      else if (node.id === "11") localizedDetails = "ಕೋರಮಂಗಲ ಪೊಲೀಸ್ ಠಾಣೆಯಲ್ಲಿ ದಾಖಲಾದ ಸಕ್ರಿಯ ಫಿಶಿಂಗ್ ಮತ್ತು ಬ್ಯಾಂಕಿಂಗ್ ವಂಚನೆ ಪ್ರಕರಣ.";
+      else if (node.id === "12") localizedDetails = "ಸಕ್ರಿಯ ಮೇಲ್ವಿಚಾರಕರ ತನಿಖೆಯ ಅಡಿಯಲ್ಲಿರುವ ಪೋಂಜಿ ಸ್ಕೀಮ್ ಹಗರಣದ ಡಾಕೆಟ್.";
+
+      return {
+        ...node,
+        type: localizedType,
+        details: localizedDetails
+      };
+    }
+    return node;
+  });
+
+  const selectedNode = localizedNodes.find(n => n.id === selectedNodeId) || null;
 
   const handleMouseDown = (nodeId: string, e: React.MouseEvent<SVGGElement>) => {
     e.preventDefault();
@@ -114,10 +218,8 @@ export function CriminalNetwork() {
       "11": { x: 280, y: 230 },
       "12": { x: 500, y: 230 }
     });
-    setSelectedNode(null);
+    setSelectedNodeId(null);
     setShowLaunderingChains(false);
-    setZoomLevel(1);
-    setPanOffset({ x: 0, y: 0 });
   };
 
   // Centrality Analysis (Degree count)
@@ -127,7 +229,8 @@ export function CriminalNetwork() {
 
   // Filter logic
   const isNodeVisible = (node: NetworkNode) => {
-    const matchesFilter = activeFilter === "All" || node.type === activeFilter;
+    const rawFilter = activeFilter;
+    const matchesFilter = rawFilter === "All" || node.type === rawFilter;
     const matchesSearch = searchQuery === "" || node.label.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesFilter && matchesSearch;
   };
@@ -136,20 +239,21 @@ export function CriminalNetwork() {
   const getNodeVisuals = (node: NetworkNode) => {
     let color = "#3b82f6"; // default blue
     let icon = "🌐";
+    const typeStr = node.type as string;
 
-    if (node.type === "Accused") {
+    if (typeStr === "Accused" || typeStr === "ಆರೋಪಿ") {
       color = "#ef4444"; // Red for suspects
       icon = "👤";
-    } else if (node.type === "Bank Account") {
+    } else if (typeStr === "Bank Account" || typeStr === "ಬ್ಯಾಂಕ್ ಖಾತೆ") {
       color = "#f59e0b"; // Orange for financial
       icon = "🏦";
-    } else if (node.type === "Vehicle") {
+    } else if (typeStr === "Vehicle" || typeStr === "ವಾಹನ") {
       color = "#64748b"; // slate
       icon = "🚗";
-    } else if (node.type === "Phone") {
+    } else if (typeStr === "Phone" || typeStr === "ಮೊಬೈಲ್") {
       color = "#6366f1"; // indigo
       icon = "📱";
-    } else if (node.type === "FIR") {
+    } else if (typeStr === "FIR" || typeStr === "ಎಫ್ಐಆರ್") {
       color = "#10b981"; // emerald
       icon = "📄";
     }
@@ -158,6 +262,28 @@ export function CriminalNetwork() {
 
     return { color, icon, isCentral };
   };
+
+  const getLocalizedLinkLabel = (engLabel: string) => {
+    if (language !== "Kannada") return engLabel;
+    if (engLabel === "Charged in") return "ಪ್ರಕರಣ ದಾಖಲು";
+    if (engLabel === "Drives vehicle") return "ವಾಹನ ಚಾಲನೆ";
+    if (engLabel === "Operates device") return "ಮೊಬೈಲ್ ಬಳಕೆ";
+    if (engLabel === "Controls funds") return "ಹಣ ನಿಯಂತ್ರಣ";
+    if (engLabel === "Launders in") return "ಹಣ ವರ್ಗಾವಣೆ";
+    if (engLabel === "Structured transfer") return "ರಚನಾತ್ಮಕ ವರ್ಗಾವಣೆ";
+    if (engLabel === "Direct withdrawal") return "ನೇರ ಹಿಂಪಡೆಯುವಿಕೆ";
+    if (engLabel === "Borrower of") return "ಸಾಲ ಪಡೆದವರು";
+    return engLabel;
+  };
+
+  const filterOptions = [
+    { key: "All", label: L_LANG.all },
+    { key: "Accused", label: L_LANG.accused },
+    { key: "Bank Account", label: L_LANG.bankAccount },
+    { key: "Phone", label: L_LANG.phone },
+    { key: "Vehicle", label: L_LANG.vehicle },
+    { key: "FIR", label: L_LANG.fir }
+  ];
 
   return (
     <div className="flex flex-col h-full bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl" id="network-intelligence-panel">
@@ -169,12 +295,12 @@ export function CriminalNetwork() {
           </div>
           <div>
             <h2 className="text-sm font-bold text-slate-100 flex items-center gap-1.5">
-              Tactical Syndicate Relationship Network
+              {L_LANG.title}
               <span className="px-2 py-0.5 text-[9px] font-black bg-blue-500/20 text-blue-300 rounded border border-blue-500/30 uppercase tracking-wider">
-                Graph Centrality
+                {L_LANG.badge}
               </span>
             </h2>
-            <p className="text-[10px] text-slate-400 font-medium">Linkage Matrix // Spatial Structuring Analytics</p>
+            <p className="text-[10px] text-slate-400 font-medium">{L_LANG.subtitle}</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -184,7 +310,7 @@ export function CriminalNetwork() {
               showLaunderingChains ? "bg-amber-600/25 text-amber-300 border-amber-500/30" : "bg-slate-900 text-slate-400"
             }`}
           >
-            Show Money Trail Chain
+            {L_LANG.showMoneyTrail}
           </button>
           <button
             onClick={handleResetGraph}
@@ -201,18 +327,18 @@ export function CriminalNetwork() {
         <div className="flex items-center gap-2">
           <Filter className="w-3.5 h-3.5 text-slate-500" />
           <div className="flex gap-1">
-            {["All", "Accused", "Bank Account", "Phone", "Vehicle", "FIR"].map(type => (
+            {filterOptions.map(opt => (
               <button
-                key={type}
+                key={opt.key}
                 onClick={() => {
-                  setActiveFilter(type);
-                  setSelectedNode(null);
+                  setActiveFilter(opt.key);
+                  setSelectedNodeId(null);
                 }}
                 className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase transition-all ${
-                  activeFilter === type ? "bg-blue-600 text-white" : "bg-slate-900 text-slate-400 hover:text-white"
+                  activeFilter === opt.key ? "bg-blue-600 text-white" : "bg-slate-900 text-slate-400 hover:text-white"
                 }`}
               >
-                {type}s
+                {opt.label}
               </button>
             ))}
           </div>
@@ -224,7 +350,7 @@ export function CriminalNetwork() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search syndicate nodes..."
+            placeholder={L_LANG.searchPlaceholder}
             className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 pl-8 py-1 text-[11px] text-slate-200 focus:outline-none focus:border-blue-500"
           />
         </div>
@@ -235,27 +361,27 @@ export function CriminalNetwork() {
         <div className="col-span-12 lg:col-span-8 relative flex flex-col justify-between overflow-hidden">
           {/* Zoom Overlay panel */}
           <div className="absolute top-4 left-4 bg-slate-900/95 border border-slate-800 rounded-xl p-3 z-10 space-y-2 text-[10px] text-slate-300">
-            <p className="font-bold border-b border-slate-800 pb-1 text-blue-400">Tactical Legend</p>
+            <p className="font-bold border-b border-slate-800 pb-1 text-blue-400">{L_LANG.legendTitle}</p>
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span>
-              Accused (Suspects)
+              {L_LANG.accusedLegend}
             </div>
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span>
-              Financial Accounts
+              {L_LANG.financialLegend}
             </div>
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 inline-block"></span>
-              IMEI Terminals
+              {L_LANG.imeiLegend}
             </div>
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
-              FIR Case File Node
+              {L_LANG.firLegend}
             </div>
           </div>
 
-          <div className="absolute top-4 right-4 bg-blue-950/80 border border-blue-500/20 text-blue-300 p-2.5 rounded-lg text-[10px] max-w-[200px] font-semibold leading-relaxed z-10">
-            💡 Drag any node to reposition. Hover details will pop up. Click any node to open forensic telemetry.
+          <div className="absolute top-4 right-4 bg-blue-950/80 border border-blue-500/20 text-blue-300 p-2.5 rounded-lg text-[10px] max-w-[200px] font-semibold leading-relaxed z-10 text-justify">
+            {L_LANG.tipMessage}
           </div>
 
           {/* SVG Canvas Map */}
@@ -280,8 +406,8 @@ export function CriminalNetwork() {
 
               {/* Connecting lines link layer */}
               {links.map((link, idx) => {
-                const sourceNode = nodes.find(n => n.id === link.source);
-                const targetNode = nodes.find(n => n.id === link.target);
+                const sourceNode = localizedNodes.find(n => n.id === link.source);
+                const targetNode = localizedNodes.find(n => n.id === link.target);
 
                 if (!sourceNode || !targetNode) return null;
                 if (!isNodeVisible(sourceNode) || !isNodeVisible(targetNode)) return null;
@@ -294,7 +420,7 @@ export function CriminalNetwork() {
                 // Highlight status
                 const isLaunderingPath = showLaunderingChains && 
                   (link.source === "5" || link.target === "5" || link.source === "1" || link.target === "1" || link.source === "2" || link.target === "2") &&
-                  (sourceNode.type === "Bank Account" || targetNode.type === "Bank Account");
+                  (sourceNode.type === "Bank Account" || sourceNode.type === "ಬ್ಯಾಂಕ್ ಖಾತೆ" || targetNode.type === "Bank Account" || targetNode.type === "ಬ್ಯಾಂಕ್ ಖಾತೆ");
 
                 return (
                   <g key={idx}>
@@ -318,14 +444,14 @@ export function CriminalNetwork() {
                       textAnchor="middle"
                       className="font-mono tracking-tight font-bold select-none"
                     >
-                      {link.label}
+                      {getLocalizedLinkLabel(link.label)}
                     </text>
                   </g>
                 );
               })}
 
               {/* Node Circle element layer */}
-              {nodes.filter(isNodeVisible).map(node => {
+              {localizedNodes.filter(isNodeVisible).map(node => {
                 const pos = positions[node.id];
                 if (!pos) return null;
 
@@ -336,7 +462,7 @@ export function CriminalNetwork() {
                   <g
                     key={node.id}
                     onMouseDown={(e) => handleMouseDown(node.id, e)}
-                    onClick={() => setSelectedNode(node)}
+                    onClick={() => setSelectedNodeId(node.id)}
                     className="cursor-grab active:cursor-grabbing group"
                   >
                     {/* Ring highlight halo if selected or high degree centrality */}
@@ -395,7 +521,7 @@ export function CriminalNetwork() {
                         fontSize="9"
                         className="font-bold fill-amber-400 animate-bounce select-none"
                       >
-                        👑 Central Node
+                        {L_LANG.crownText}
                       </text>
                     )}
 
@@ -417,8 +543,8 @@ export function CriminalNetwork() {
             </svg>
           </div>
 
-          <div className="bg-slate-900/60 p-3 rounded-lg border border-slate-800 m-4 text-[10px] text-slate-400 font-semibold leading-tight">
-            🔒 Financial Intelligence Unit (FIU) nodes synchronized with Central Registry dockets.
+          <div className="bg-slate-900/60 p-3 rounded-lg border border-slate-800 m-4 text-[10px] text-slate-400 font-semibold leading-tight text-justify">
+            {L_LANG.fiuSyncNotice}
           </div>
         </div>
 
@@ -427,30 +553,30 @@ export function CriminalNetwork() {
           <div className="space-y-4">
             <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-800 pb-2">
               <Cpu className="w-4 h-4 text-blue-400" />
-              Node Intelligence Docket
+              {L_LANG.intelligenceDocket}
             </h3>
 
             {selectedNode ? (
-              <div className="p-4 bg-slate-900/40 border border-slate-800 rounded-xl space-y-4 animate-fade-in">
+              <div className="p-4 bg-slate-900/40 border border-slate-800 rounded-xl space-y-4 animate-fadeIn">
                 <div className="flex items-center gap-3">
                   <div className={`p-2.5 rounded-lg text-white font-bold text-lg ${
-                    selectedNode.type === "Accused" ? "bg-red-600" :
-                    selectedNode.type === "Bank Account" ? "bg-amber-600" :
-                    selectedNode.type === "FIR" ? "bg-emerald-600" : "bg-blue-600"
+                    (selectedNode.type === "Accused" || selectedNode.type === "ಆರೋಪಿ") ? "bg-red-600" :
+                    (selectedNode.type === "Bank Account" || selectedNode.type === "ಬ್ಯಾಂಕ್ ಖಾತೆ") ? "bg-amber-600" :
+                    (selectedNode.type === "FIR" || selectedNode.type === "ಎಫ್ಐಆರ್") ? "bg-emerald-600" : "bg-blue-600"
                   }`}>
-                    {selectedNode.type === "Accused" ? "👤" :
-                     selectedNode.type === "Bank Account" ? "🏦" :
-                     selectedNode.type === "FIR" ? "📄" : "🌐"}
+                    {(selectedNode.type === "Accused" || selectedNode.type === "ಆರೋಪಿ") ? "👤" :
+                     (selectedNode.type === "Bank Account" || selectedNode.type === "ಬ್ಯಾಂಕ್ ಖಾತೆ") ? "🏦" :
+                     (selectedNode.type === "FIR" || selectedNode.type === "ಎಫ್ಐಆರ್") ? "📄" : "🌐"}
                   </div>
                   <div>
                     <h4 className="text-xs font-black text-slate-100">{selectedNode.label}</h4>
-                    <p className="text-[10px] text-slate-400 uppercase tracking-wider">{selectedNode.type} Node</p>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider">{selectedNode.type}</p>
                   </div>
                 </div>
 
                 <div className="text-xs space-y-2">
-                  <p className="text-slate-400 leading-relaxed font-semibold">Forensic Description:</p>
-                  <p className="p-3 bg-slate-950/40 border border-slate-850 rounded text-slate-300 leading-relaxed italic">
+                  <p className="text-slate-400 leading-relaxed font-semibold">{L_LANG.forensicDescription}</p>
+                  <p className="p-3 bg-slate-950/40 border border-slate-850 rounded text-slate-300 leading-relaxed italic text-justify">
                     "{selectedNode.details}"
                   </p>
                 </div>
@@ -458,22 +584,22 @@ export function CriminalNetwork() {
                 {/* CENTRAL CENTRALITY INSIGHT */}
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div className="p-3 bg-slate-950/60 border border-slate-850 rounded">
-                    <p className="text-[9px] font-black text-slate-500 uppercase mb-0.5">Syndicate Degree Centrality</p>
-                    <p className="font-bold text-slate-300">{getNodeCentrality(selectedNode.id)} Linked Nodes</p>
+                    <p className="text-[9px] font-black text-slate-500 uppercase mb-0.5">{L_LANG.degreeCentrality}</p>
+                    <p className="font-bold text-slate-300">{getNodeCentrality(selectedNode.id)} {L_LANG.linkedNodes}</p>
                   </div>
                   <div className="p-3 bg-slate-950/60 border border-slate-850 rounded">
-                    <p className="text-[9px] font-black text-slate-500 uppercase mb-0.5">Central Risk Priority</p>
+                    <p className="text-[9px] font-black text-slate-500 uppercase mb-0.5">{L_LANG.centralRiskPriority}</p>
                     <p className={`font-black uppercase ${
                       getNodeCentrality(selectedNode.id) >= 3 ? "text-red-500" : "text-slate-400"
                     }`}>
-                      {getNodeCentrality(selectedNode.id) >= 3 ? "CRITICAL RISK" : "OBSERVATION"}
+                      {getNodeCentrality(selectedNode.id) >= 3 ? L_LANG.criticalRisk : L_LANG.observation}
                     </p>
                   </div>
                 </div>
               </div>
             ) : (
               <div className="text-center py-24 text-xs text-slate-500 leading-relaxed max-w-[240px] mx-auto">
-                No active node selected. Click on any network vertex point or suspect node to query deep CCTNS forensic dockets.
+                {L_LANG.noNodeSelected}
               </div>
             )}
           </div>
@@ -481,10 +607,10 @@ export function CriminalNetwork() {
           <div className="p-3.5 bg-blue-950/20 border border-blue-900/20 rounded-xl">
             <h4 className="text-[10px] font-black uppercase text-blue-400 tracking-wider mb-1 flex items-center gap-1">
               <Activity className="w-3.5 h-3.5" />
-              Syndicate centrality metrics
+              {L_LANG.centralityMetrics}
             </h4>
-            <p className="text-[10px] text-blue-300 leading-normal">
-              High centrality nodes indicate mastermind nodes or central mules. Section 106 BNSS triggers automatic freezing on central holding nodes.
+            <p className="text-[10px] text-blue-300 leading-normal text-justify">
+              {L_LANG.centralityMetricsDesc}
             </p>
           </div>
         </div>

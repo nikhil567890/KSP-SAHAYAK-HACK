@@ -10,6 +10,7 @@ import {
   Search,
   Share2,
   TrendingUp,
+  BarChart3,
   Shield,
   FileText,
   UserCheck,
@@ -39,6 +40,8 @@ import {
   Filter,
   LogIn,
   LogOut,
+  ExternalLink,
+  X,
 } from "lucide-react";
 import { UserRole, User, FIR, Accused, Victim, Witness, Evidence, Vehicle, Phone, FinancialTransaction, AuditLog, NetworkNode, NetworkLink } from "./types";
 import { POLICE_STATIONS, SEED_USERS } from "./dataStore";
@@ -47,6 +50,7 @@ import { CrimeHeatmap } from "./components/CrimeHeatmap";
 import { CaseSummaryGenerator } from "./components/CaseSummaryGenerator";
 import { SimilarCaseFinder } from "./components/SimilarCaseFinder";
 import { CriminalNetwork } from "./components/CriminalNetwork";
+import { OpenCityStats } from "./components/OpenCityStats";
 
 // Multilingual labels
 const TRANSLATIONS = {
@@ -79,6 +83,7 @@ const TRANSLATIONS = {
       network: "Criminal Network Graph",
       forecast: "Forecasting & Hotspots",
       logs: "Audit Trails",
+      opencity: "State Crime Stats",
     },
     filterAll: "All Categories",
     riskIndex: "RISK LEVEL",
@@ -124,6 +129,7 @@ const TRANSLATIONS = {
       network: "ಅಪರಾಧ ನೆಟ್‌ವರ್ಕ್ ಗ್ರಾಫ್",
       forecast: "ಮುನ್ಸೂಚನೆ ಮತ್ತು ಹಾಟ್‌ಸ್ಪಾಟ್‌ಗಳು",
       logs: "ಲೆಕ್ಕಪರಿಶೋಧನೆ ಲಾಗ್‌ಗಳು",
+      opencity: "ರಾಜ್ಯ ಅಪರಾಧ ಅಂಕಿಅಂಶಗಳು",
     },
     filterAll: "ಎಲ್ಲಾ ವರ್ಗಗಳು",
     riskIndex: "ಅಪಾಯದ ಮಟ್ಟ",
@@ -224,6 +230,8 @@ export default function App() {
   
   // Database States loaded from API
   const [firs, setFirs] = useState<FIR[]>([]);
+  const [firebaseStatus, setFirebaseStatus] = useState<any>(null);
+  const [dismissFirebaseAlert, setDismissFirebaseAlert] = useState<boolean>(false);
   const [accused, setAccused] = useState<Accused[]>([]);
   const [victims, setVictims] = useState<Victim[]>([]);
   const [witnesses, setWitnesses] = useState<Witness[]>([]);
@@ -235,17 +243,18 @@ export default function App() {
   const [networkLinks, setNetworkLinks] = useState<NetworkLink[]>([]);
   const [forecastReport, setForecastReport] = useState<any>(null);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [stateStats, setStateStats] = useState<any[]>([]);
 
   // Selected details modal
   const [selectedAccused, setSelectedAccused] = useState<Accused | null>(null);
   const [selectedFIR, setSelectedFIR] = useState<FIR | null>(null);
 
   // Active filters for Explorer
-  const [explorerTable, setExplorerTable] = useState<"firs" | "accused" | "evidence" | "transactions" | "vehicles" | "phones" | "import">("firs");
+  const [explorerTable, setExplorerTable] = useState<"firs" | "accused" | "evidence" | "transactions" | "vehicles" | "phones" | "state_stats" | "import">("firs");
   const [searchFilter, setSearchFilter] = useState("");
 
   // Legacy Import State
-  const [importType, setImportType] = useState<"firs" | "accused" | "evidence" | "transactions" | "vehicles" | "phones">("firs");
+  const [importType, setImportType] = useState<"firs" | "accused" | "evidence" | "transactions" | "vehicles" | "phones" | "state_stats">("firs");
   const [pasteContent, setPasteContent] = useState<string>("");
   const [importStatus, setImportStatus] = useState<string>("");
   const [importErrors, setImportErrors] = useState<string[]>([]);
@@ -264,6 +273,10 @@ export default function App() {
   const [manualAccusedAge, setManualAccusedAge] = useState("32");
   const [manualAccusedModusOperandi, setManualAccusedModusOperandi] = useState("");
   const [manualAccusedRiskScore, setManualAccusedRiskScore] = useState("65");
+
+  const [manualStatSlNo, setManualStatSlNo] = useState("");
+  const [manualStatHeadsOfCrime, setManualStatHeadsOfCrime] = useState("");
+  const [manualStatFor2025, setManualStatFor2025] = useState("");
 
   // Chat conversation
   const [chatInput, setChatInput] = useState("");
@@ -1286,10 +1299,22 @@ export default function App() {
           status: "Flagged",
           flagReason: "Unusual outward RTGS matching historic pension embezzlement timelines."
         }
+      ],
+      state_stats: [
+        {
+          "Sl. No.": "999",
+          "Heads of Crime": "Cyber Phishing & SIM Swapping",
+          "For 2025": "1250"
+        },
+        {
+          "Sl. No.": "1000",
+          "Heads of Crime": "Cryptocurrency Investment Forgery",
+          "For 2025": "850"
+        }
       ]
     };
 
-    const handleImportTemplate = async (category: "firs" | "accused" | "evidence" | "transactions") => {
+    const handleImportTemplate = async (category: "firs" | "accused" | "evidence" | "transactions" | "state_stats") => {
       setIsImporting(true);
       setImportStatus("");
       setImportErrors([]);
@@ -1414,8 +1439,19 @@ export default function App() {
           status: "Under Watch",
           severityIndex: Number(manualAccusedRiskScore) > 75 ? "High" : "Medium"
         }];
+      } else if (importType === "state_stats") {
+        if (!manualStatHeadsOfCrime) {
+          alert("Heads of Crime is required.");
+          setIsImporting(false);
+          return;
+        }
+        records = [{
+          "Sl. No.": manualStatSlNo || undefined,
+          "Heads of Crime": manualStatHeadsOfCrime,
+          "For 2025": manualStatFor2025 || "0"
+        }];
       } else {
-        alert("Guided form currently supports FIR and Accused Ingestion.");
+        alert("Guided form currently supports FIR, Accused, and State Crime Stats Ingestion.");
         setIsImporting(false);
         return;
       }
@@ -1440,6 +1476,9 @@ export default function App() {
           setManualAccusedName("");
           setManualAccusedModusOperandi("");
           setManualAccusedAlias("");
+          setManualStatSlNo("");
+          setManualStatHeadsOfCrime("");
+          setManualStatFor2025("");
           await fetchData();
         } else {
           setImportErrors(res.errors || ["Ingestion rejected by safety rules."]);
@@ -1493,7 +1532,7 @@ export default function App() {
           </div>
           <p className="text-xs text-slate-500">Test the ingestion system instantly by launching pre-vetted legal/police records from the 1990-2015 State Archive.</p>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2.5 pt-1">
             <button
               onClick={() => handleImportTemplate("firs")}
               disabled={isImporting}
@@ -1545,6 +1584,19 @@ export default function App() {
               <p className="text-xs font-bold text-slate-800">Suspicious Banking Trails</p>
               <p className="text-[10px] text-slate-400">1 high-value outward RTGS pension ledger record.</p>
             </button>
+
+            <button
+              onClick={() => handleImportTemplate("state_stats")}
+              disabled={isImporting}
+              className="p-3 border border-slate-200 hover:border-blue-500 hover:bg-blue-50/20 rounded-lg text-left transition-all space-y-1 group disabled:opacity-50"
+            >
+              <div className="flex justify-between items-start">
+                <span className="text-[10px] uppercase font-black text-blue-600">Crime Stats</span>
+                <Plus className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600" />
+              </div>
+              <p className="text-xs font-bold text-slate-800">State Crime Registry</p>
+              <p className="text-[10px] text-slate-400">2 statistical records: Cyber Phishing & Cryptocurrency Investment Forgery.</p>
+            </button>
           </div>
         </div>
 
@@ -1566,6 +1618,7 @@ export default function App() {
                 <option value="transactions">Transactions</option>
                 <option value="vehicles">Vehicles</option>
                 <option value="phones">Phones</option>
+                <option value="state_stats">State Crime Stats</option>
               </select>
             </div>
             
@@ -1738,15 +1791,53 @@ export default function App() {
                       />
                     </div>
                   </>
+                ) : importType === "state_stats" ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[9px] font-black uppercase text-slate-400">Sl. No. (Optional)</label>
+                        <input
+                          type="text"
+                          value={manualStatSlNo}
+                          onChange={(e) => setManualStatSlNo(e.target.value)}
+                          placeholder="652"
+                          className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-black uppercase text-slate-400">Case Count (For 2025) *</label>
+                        <input
+                          type="text"
+                          value={manualStatFor2025}
+                          onChange={(e) => setManualStatFor2025(e.target.value)}
+                          placeholder="25"
+                          required
+                          className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[9px] font-black uppercase text-slate-400">Heads of Crime *</label>
+                      <input
+                        type="text"
+                        value={manualStatHeadsOfCrime}
+                        onChange={(e) => setManualStatHeadsOfCrime(e.target.value)}
+                        placeholder="E.g., Phishing via fake bank calls"
+                        required
+                        className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs focus:outline-none"
+                      />
+                    </div>
+                  </>
                 ) : (
                   <div className="p-4 bg-slate-50 border rounded text-center text-xs text-slate-500 py-12 flex flex-col justify-center items-center h-full">
                     <AlertTriangle className="w-8 h-8 text-amber-500 mb-2" />
-                    Please switch Bulk category to FIRs or Accused to unlock guided manual ingestion forms.
+                    Please switch Bulk category to FIRs, Accused, or State Crime Stats to unlock guided manual ingestion forms.
                   </div>
                 )}
               </div>
 
-              {(importType === "firs" || importType === "accused") && (
+              {(importType === "firs" || importType === "accused" || importType === "state_stats") && (
                 <button
                   type="submit"
                   disabled={isImporting}
@@ -1784,6 +1875,8 @@ export default function App() {
       const netRes = await fetch("/api/network").then(r => r.json());
       const foreRes = await fetch("/api/forecast").then(r => r.json());
       const logRes = await fetch("/api/audit-logs").then(r => r.json());
+      const stateStatsRes = await fetch("/api/state-stats").then(r => r.json());
+      const fbStatusRes = await fetch("/api/firebase-status").then(r => r.json()).catch(() => null);
 
       setFirs(fRes);
       setAccused(aRes);
@@ -1797,6 +1890,8 @@ export default function App() {
       setNetworkLinks(netRes.links || []);
       setForecastReport(foreRes);
       setAuditLogs(logRes);
+      setStateStats(stateStatsRes || []);
+      setFirebaseStatus(fbStatusRes);
 
       // Default selected accused is Karthik Shettar
       if (aRes.length > 0) {
@@ -2331,11 +2426,32 @@ export default function App() {
             </div>
           </div>
 
-          {/* Active Cloud Mode */}
-          <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-slate-800 rounded-md text-xs font-semibold text-emerald-400 border border-emerald-500/30">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-            {L.secureNode}
-          </div>
+          {/* Dynamic Storage Connection Indicator */}
+          {firebaseStatus ? (
+            firebaseStatus.enabled ? (
+              <div 
+                title="Connected to Firebase Cloud Firestore for real-time secure state sharing."
+                className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-[#1e293b] rounded-md text-xs font-semibold text-emerald-400 border border-emerald-500/30 select-none"
+              >
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                ☁️ {language === "English" ? "FIREBASE LIVE" : "ಫೈರ್‌ಬೇಸ್ ಲೈವ್"}
+              </div>
+            ) : (
+              <button 
+                onClick={() => setDismissFirebaseAlert(false)}
+                title="Running in secure Local-First Offline mode. Click to view configuration guidelines."
+                className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-amber-950/40 hover:bg-amber-900/40 rounded-md text-xs font-bold text-amber-400 border border-amber-500/30 transition-all select-none cursor-pointer"
+              >
+                <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
+                ⚠️ {language === "English" ? "LOCAL-FIRST" : "ಸ್ಥಳೀಯ ಮೋಡ್"}
+              </button>
+            )
+          ) : (
+            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-slate-800 rounded-md text-xs font-semibold text-emerald-400 border border-emerald-500/30">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+              {L.secureNode}
+            </div>
+          )}
 
           {/* Language Switcher */}
           <button
@@ -2385,6 +2501,48 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {/* Firebase Firestore Status Banner */}
+      {firebaseStatus && !firebaseStatus.enabled && !dismissFirebaseAlert && (
+        <div className="bg-slate-900 border-b border-amber-500/30 px-8 py-3.5 flex items-center justify-between text-slate-100 shrink-0 select-none animate-fade-in">
+          <div className="flex items-center gap-4">
+            <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-[#fbbf24]">
+              <Database className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <p className="text-xs font-bold tracking-wide text-white uppercase flex items-center gap-2">
+                <span>🛡️ Local-First Secure Mode Enforced</span>
+                <span className="text-[9px] bg-amber-500/10 text-[#fbbf24] border border-amber-500/30 px-1.5 py-0.5 rounded uppercase font-semibold">
+                  API Offline Fallback
+                </span>
+              </p>
+              <p className="text-[11px] text-slate-300 mt-0.5 leading-relaxed">
+                Cloud Firestore database is disabled or not initialized in Google project <span className="font-mono font-bold text-[#fbbf24]">"{firebaseStatus.projectId}"</span>. KSP Sahayak is operating smoothly with 100% full local sandbox capabilities.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {firebaseStatus.errorLink && (
+              <a
+                href={firebaseStatus.errorLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3.5 py-1.5 bg-[#fbbf24] hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-md uppercase tracking-wider transition-all shadow-sm flex items-center gap-1.5 shrink-0"
+              >
+                Enable Firestore API
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            )}
+            <button
+              onClick={() => setDismissFirebaseAlert(true)}
+              title="Dismiss Alert (Re-open by clicking top status badge)"
+              className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* MAIN CONTAINER */}
       <main className="flex flex-1 overflow-hidden bg-slate-50">
@@ -2499,6 +2657,18 @@ export default function App() {
             >
               <TrendingUp className="w-5 h-5 shrink-0" />
               <span className="hidden md:inline font-sans text-xs tracking-wide uppercase font-semibold">{L.tabs.forecast}</span>
+            </button>
+          )}
+
+          {(selectedUser.role === UserRole.INVESTIGATOR || selectedUser.role === UserRole.ANALYST || selectedUser.role === UserRole.SUPERVISOR || selectedUser.role === UserRole.POLICYMAKER) && (
+            <button
+              id="nav-opencity-tab"
+              onClick={() => setActiveTab("opencity")}
+              title={L.tabs.opencity}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg w-full transition-all text-left ${activeTab === "opencity" ? "bg-[#0f172a] text-white shadow font-bold" : "text-slate-600 hover:bg-white hover:text-slate-900"}`}
+            >
+              <BarChart3 className="w-5 h-5 shrink-0 text-emerald-500" />
+              <span className="hidden md:inline font-sans text-xs tracking-wide uppercase font-semibold">{L.tabs.opencity}</span>
             </button>
           )}
 
@@ -2733,7 +2903,7 @@ export default function App() {
                 <span className="text-xs font-bold text-slate-700">STATE POLICE RECORDS REGISTRY</span>
               </div>
               <div className="flex gap-1.5 flex-wrap">
-                {(["firs", "accused", "evidence", "transactions", "vehicles", "phones", "import"] as const).map(tab => (
+                {(["firs", "accused", "evidence", "transactions", "vehicles", "phones", "state_stats", "import"] as const).map(tab => (
                   <button
                     key={tab}
                     onClick={() => {
@@ -2742,7 +2912,7 @@ export default function App() {
                     }}
                     className={`px-3 py-1 text-[10px] font-bold uppercase rounded ${explorerTable === tab ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
                   >
-                    {tab === "import" ? "📥 Import Legacy" : tab}
+                    {tab === "import" ? "📥 Import Legacy" : tab === "state_stats" ? "📊 State Crime Stats" : tab}
                   </button>
                 ))}
               </div>
@@ -2941,6 +3111,40 @@ export default function App() {
                 </table>
               )}
 
+              {/* Table State Crime Stats */}
+              {explorerTable === "state_stats" && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-[10px] text-slate-500 font-bold px-1 bg-slate-50 p-2 rounded border">
+                    <span>📊 STATE REGISTRY RECORD COUNT: {stateStats.filter(s => s["Heads of Crime"]?.toLowerCase().includes(searchFilter.toLowerCase())).length} of {stateStats.length} TOTAL ENTRIES</span>
+                    <span className="text-blue-600 font-black">OPENCITY INDIA DATASET</span>
+                  </div>
+                  <div className="overflow-x-auto max-h-[500px]">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead className="sticky top-0 bg-slate-100 shadow-sm z-10">
+                        <tr className="bg-slate-100 border-b border-slate-200 text-slate-500 font-bold">
+                          <th className="p-2 w-20">Sl. No.</th>
+                          <th className="p-2">Heads of Crime</th>
+                          <th className="p-2 w-48 text-right">Cases (For 2025)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {stateStats
+                          .filter(s => s["Heads of Crime"]?.toLowerCase().includes(searchFilter.toLowerCase()))
+                          .map((s, idx) => (
+                            <tr key={s._id || idx} className="border-b border-slate-100 hover:bg-blue-50/40 transition-colors">
+                              <td className="p-2 font-mono text-slate-400">{s["Sl. No."] || "N/A"}</td>
+                              <td className="p-2 font-semibold text-slate-800">{s["Heads of Crime"]}</td>
+                              <td className="p-2 text-right font-black text-blue-600 font-mono pr-4">
+                                {s["For 2025"] ? Number(s["For 2025"]).toLocaleString() : "0"}
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
               {/* Table Import Legacy */}
               {explorerTable === "import" && renderLegacyImporter()}
             </div>
@@ -2948,7 +3152,7 @@ export default function App() {
 
           {/* TAB 3: NETWORK INTERACTIVE VISUALIZER */}
           <div className={`col-span-12 lg:col-span-8 flex flex-col bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl ${activeTab === "network" ? "flex" : "hidden"}`}>
-            <CriminalNetwork />
+            <CriminalNetwork language={language} />
           </div>
 
           {/* TAB 4: ML FORECASTING & PATTERN HEATMAP */}
@@ -3125,6 +3329,7 @@ export default function App() {
               <AICopilot 
                 currentUser={selectedUser} 
                 firs={firs} 
+                language={language}
               />
             </div>
           )}
@@ -3132,21 +3337,28 @@ export default function App() {
           {/* TAB: GIS MAP HUB */}
           {activeTab === "gis" && (
             <div className="col-span-12 lg:col-span-8 h-full flex flex-col overflow-hidden">
-              <CrimeHeatmap firs={firs} />
+              <CrimeHeatmap firs={firs} language={language} />
             </div>
           )}
 
           {/* TAB: AI CASE DOCKET GENERATOR */}
           {activeTab === "summary" && (
             <div className="col-span-12 lg:col-span-8 h-full flex flex-col overflow-hidden">
-              <CaseSummaryGenerator currentUser={selectedUser} firs={firs} />
+              <CaseSummaryGenerator currentUser={selectedUser} firs={firs} language={language} />
             </div>
           )}
 
           {/* TAB: SIMILAR CASE FINDER */}
           {activeTab === "similarity" && (
             <div className="col-span-12 lg:col-span-8 h-full flex flex-col overflow-hidden">
-              <SimilarCaseFinder firs={firs} />
+              <SimilarCaseFinder firs={firs} language={language} />
+            </div>
+          )}
+
+          {/* TAB: OPENCITY LIVE CRIME STATISTICS */}
+          {activeTab === "opencity" && (
+            <div className="col-span-12 lg:col-span-8 h-full flex flex-col overflow-hidden">
+              <OpenCityStats language={language} />
             </div>
           )}
 

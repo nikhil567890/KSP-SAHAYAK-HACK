@@ -17,6 +17,7 @@ import { FIR, User, UserRole } from "../types";
 interface CaseSummaryProps {
   currentUser: User;
   firs: FIR[];
+  language?: "English" | "Kannada";
 }
 
 interface CaseReport {
@@ -40,12 +41,83 @@ interface CaseReport {
   courtReadinessScore: number;
 }
 
-export function CaseSummaryGenerator({ currentUser, firs }: CaseSummaryProps) {
+const TRANSLATIONS = {
+  English: {
+    title: "AI Case Docket Generator",
+    subtitle: "Court-Ready Prosecution Briefs",
+    selectFirLabel: "Select Case FIR Number",
+    selectPlaceholder: "-- Select Target FIR file --",
+    generateBtn: "Generate Court Brief",
+    generating: "Synthesizing legal intelligence brief...",
+    courtReadiness: "Court Readiness Score",
+    probabilityOfConviction: "Probability of Conviction",
+    riskAssessment: "Risk Assessment",
+    executiveSummary: "Executive Summary",
+    caseOverview: "Case Operational Overview",
+    accusedAnalysis: "Accused Suspect Analysis",
+    victimStatements: "Victim Statement Records",
+    evidenceCollected: "Physical & Digital Evidence",
+    missingEvidence: "Missing Evidence Checklist",
+    investigationProgress: "Investigation Progress",
+    recommendedActions: "Recommended Next Actions",
+    convictionRate: "Estimated Conviction Rate",
+    evidenceIntegrity: "Evidence Integrity Score",
+    auditInsight: "Audit Insight:",
+    riskClassification: "Risk classification is cataloged as:",
+    supervisorSignOff: "Supervisor Sign-Off",
+    docketAuthorized: "Docket Authorized",
+    authorizedBy: "Authorized by Supervisor:",
+    digitalStampApplied: "Digital stamp applied to file block registry.",
+    signOffNotice: "Only Authorized Supervisor or Admin accounts can sign off on CCTNS briefs before court compilation.",
+    authorizeBtn: "Authorize & Stamp Dossier",
+    readOnlyNotice: "🔒 Read-only access: Your currently logged-in profile role does not hold case sign-off authorization.",
+    exportBtn: "Export Brief as PDF",
+    workspaceReady: "Dossier Workspace Ready",
+    workspaceReadyDesc: "Choose an active FIR investigation file from the dropdown above to auto-synthesize a prosecution brief for magistrates and courts."
+  },
+  Kannada: {
+    title: "ಎಐ ಕೇಸ್ ಡಾಕೆಟ್ ಜನರೇಟರ್",
+    subtitle: "ನ್ಯಾಯಾಲಯಕ್ಕೆ ಸಿದ್ಧವಾಗಿರುವ ಪ್ರಾಸಿಕ್ಯೂಷನ್ ಬ್ರೀಫ್ಗಳು",
+    selectFirLabel: "ಪ್ರಕರಣದ ಎಫ್‌ಐಆರ್ ಸಂಖ್ಯೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ",
+    selectPlaceholder: "-- ಗುರಿ ಎಫ್‌ಐಆರ್ ಫೈಲ್ ಆಯ್ಕೆಮಾಡಿ --",
+    generateBtn: "ನ್ಯಾಯಾಲಯದ ಬ್ರೀಫ್ ರಚಿಸಿ",
+    generating: "ಕಾನೂನು ಮಾಹಿತಿಯ ಸಾರಾಂಶವನ್ನು ಸಿದ್ಧಪಡಿಸಲಾಗುತ್ತಿದೆ...",
+    courtReadiness: "ನ್ಯಾಯಾಲಯದ ಸಿದ್ಧತೆಯ ಅಂಕ",
+    probabilityOfConviction: "ಶಿಕ್ಷೆಯಾಗುವ ಸಂಭವನೀಯತೆ",
+    riskAssessment: "ಅಪಾಯದ ಮೌಲ್ಯಮಾಪನ",
+    executiveSummary: "ಕಾರ್ಯನಿರ್ವಾಹಕ ಸಾರಾಂಶ",
+    caseOverview: "ಪ್ರಕರಣದ ಕಾರ್ಯಾಚರಣೆಯ ಅವಲೋಕನ",
+    accusedAnalysis: "ಆರೋಪಿ/ಶಂಕಿತರ ವಿಶ್ಲೇಷಣೆ",
+    victimStatements: "ದೂರುದಾರರ ಹೇಳಿಕೆಗಳ ದಾಖಲೆಗಳು",
+    evidenceCollected: "ಭೌತಿಕ ಮತ್ತು ಡಿಜಿಟಲ್ ಪುರಾವೆಗಳು",
+    missingEvidence: "ಕಾಣೆಯಾದ ಪುರಾವೆಗಳ ಪರಿಶೀಲನಾ ಪಟ್ಟಿ",
+    investigationProgress: "ತನಿಖೆಯ ಪ್ರಗತಿ",
+    recommendedActions: "ಶಿಫಾರಸು ಮಾಡಲಾದ ಮುಂದಿನ ಕ್ರಮಗಳು",
+    convictionRate: "ಅಂದಾಜು ಶಿಕ್ಷೆಯಾಗುವ ದರ",
+    evidenceIntegrity: "ಸಾಕ್ಷ್ಯಾಧಾರಗಳ ಸಮಗ್ರತೆಯ ಅಂಕ",
+    auditInsight: "ಲೆಕ್ಕಪರಿಶೋಧನಾ ಮಾಹಿತಿ:",
+    riskClassification: "ಅಪಾಯದ ವರ್ಗೀಕರಣವನ್ನು ಹೀಗೆ ದಾಖಲಿಸಲಾಗಿದೆ:",
+    supervisorSignOff: "ಮೇಲ್ವಿಚಾರಕರ ಅನುಮೋದನೆ",
+    docketAuthorized: "ಡಾಕೆಟ್ ಅಧಿಕೃತಗೊಂಡಿದೆ",
+    authorizedBy: "ಮೇಲ್ವಿಚಾರಕರಿಂದ ಅಧಿಕೃತಗೊಂಡಿದೆ:",
+    digitalStampApplied: "ಫೈಲ್ ಬ್ಲಾಕ್ ನೋಂದಣಿಗೆ ಡಿಜಿಟಲ್ ಮುದ್ರೆ ಅನ್ವಯಿಸಲಾಗಿದೆ.",
+    signOffNotice: "ನ್ಯಾಯಾಲಯದ ಸಂಕಲನಕ್ಕೆ ಮುನ್ನ ಸಿ‌ಸಿ‌ಟಿ‌ಎನ್ಎಸ್ ಬ್ರೀಫ್‌ಗಳನ್ನು ಅನುಮೋದಿಸಲು ಅಧಿಕೃತ ಮೇಲ್ವಿಚಾರಕ ಅಥವಾ ನಿರ್ವಾಹಕ ಖಾತೆಗಳಿಗೆ ಮಾತ್ರ ಅನುಮತಿಯಿದೆ.",
+    authorizeBtn: "ದೊಸ್ಸಿಯರ್ ಅನ್ನು ಅಧಿಕೃತಗೊಳಿಸಿ ಮತ್ತು ಮುದ್ರೆ ಒತ್ತಿ",
+    readOnlyNotice: "🔒 ಓದಲು ಮಾತ್ರ ಪ್ರವೇಶ: ನಿಮ್ಮ ಪ್ರಸ್ತುತ ಲಾಗಿನ್ ಆಗಿರುವ ಪ್ರೊಫೈಲ್ ಪಾತ್ರವು ಕೇಸ್ ಅನುಮೋದನೆ ಅಧಿಕಾರವನ್ನು ಹೊಂದಿಲ್ಲ.",
+    exportBtn: "ವರದಿಯನ್ನು PDF ಆಗಿ ರಫ್ತುಮಾಡಿ",
+    workspaceReady: "ದೊಸ್ಸಿಯರ್ ಕಾರ್ಯಸ್ಥಳ ಸಿದ್ಧವಾಗಿದೆ",
+    workspaceReadyDesc: "ನ್ಯಾಯಾಧೀಶರು ಮತ್ತು ನ್ಯಾಯಾಲಯಗಳಿಗೆ ಪ್ರಾಸಿಕ್ಯೂಷನ್ ಬ್ರೀಫ್ ಅನ್ನು ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಸಂಶ್ಲೇಷಿಸಲು ಮೇಲಿನ ಡ್ರಾಪ್‌ಡೌನ್‌ನಿಂದ ಸಕ್ರಿಯ ಎಫ್‌ಐಆರ್ ತನಿಖಾ ಫೈಲ್ ಅನ್ನು ಆಯ್ಕೆಮಾಡಿ."
+  }
+};
+
+export function CaseSummaryGenerator({ currentUser, firs, language = "English" }: CaseSummaryProps) {
   const [selectedFirNumber, setSelectedFirNumber] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [report, setReport] = useState<CaseReport | null>(null);
   const [approvedBySupervisor, setApprovedBySupervisor] = useState<boolean>(false);
   const [supervisorName, setSupervisorName] = useState<string>("");
+
+  const L = TRANSLATIONS[language];
 
   const handleGenerateSummary = async () => {
     if (!selectedFirNumber) return;
@@ -61,7 +133,7 @@ export function CaseSummaryGenerator({ currentUser, firs }: CaseSummaryProps) {
         body: JSON.stringify({
           firNumber: selectedFirNumber,
           user: currentUser,
-          language: "English"
+          language
         })
       });
       const data = await response.json();
@@ -75,7 +147,9 @@ export function CaseSummaryGenerator({ currentUser, firs }: CaseSummaryProps) {
 
   const handleSupervisorApproval = () => {
     if (currentUser.role !== UserRole.SUPERVISOR && currentUser.role !== UserRole.ADMIN) {
-      alert("Unauthorized: Only supervisor profiles are permitted to authorize legal briefs.");
+      alert(language === "Kannada" 
+        ? "ಅನಧಿಕೃತ: ಕೇವಲ ಮೇಲ್ವಿಚಾರಕ ಖಾತೆಗಳಿಗೆ ಮಾತ್ರ ಕಾನೂನು ಸಂಶ್ಲೇಷಣೆ ಅನುಮೋದಿಸಲು ಅವಕಾಶವಿದೆ." 
+        : "Unauthorized: Only supervisor profiles are permitted to authorize legal briefs.");
       return;
     }
     setApprovedBySupervisor(true);
@@ -198,140 +272,138 @@ export function CaseSummaryGenerator({ currentUser, firs }: CaseSummaryProps) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden shadow-sm" id="case-summary-panel">
-      {/* File folder tab styling header */}
-      <div className="px-5 py-4 border-b border-slate-200 bg-white flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="p-2 bg-slate-100 rounded-xl border border-slate-200 text-slate-800">
-            <FileText className="w-5 h-5" />
-          </div>
-          <div>
-            <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
-              AI Court Case Docket Generator
-              <span className="px-2 py-0.5 text-[9px] font-black bg-slate-100 text-slate-700 rounded border border-slate-200 uppercase tracking-wider">
-                Court Ready
-              </span>
-            </h2>
-            <p className="text-[10px] text-slate-500 font-medium">Auto-Synthesized Prosecution Briefs // CCTNS Standard</p>
-          </div>
-        </div>
-        <div className="flex gap-2">
+    <div className="flex flex-col h-full bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm" id="case-summary-panel">
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+        <span className="text-xs font-bold text-slate-700 flex items-center gap-2">
+          <FileText className="w-4 h-4 text-blue-600" />
+          {L.title}
+        </span>
+        <span className="text-[10px] text-slate-500 font-bold">{L.subtitle}</span>
+      </div>
+
+      {/* Select Box Bar */}
+      <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row items-stretch md:items-center gap-3">
+        <div className="flex-1">
+          <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider mb-1.5 block">
+            {L.selectFirLabel}
+          </label>
           <select
             value={selectedFirNumber}
             onChange={(e) => setSelectedFirNumber(e.target.value)}
-            className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none"
+            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none shadow-inner"
           >
-            <option value="">-- Choose FIR File --</option>
+            <option value="">{L.selectPlaceholder}</option>
             {firs.map(f => (
               <option key={f.id} value={f.firNumber}>
-                {f.firNumber} ({f.policeStation.split(" ")[0]})
+                {f.firNumber} - {f.crimeCategory} ({f.policeStation})
               </option>
             ))}
           </select>
-          <button
-            onClick={handleGenerateSummary}
-            disabled={!selectedFirNumber || loading}
-            className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-100 disabled:text-slate-400 text-white text-xs font-bold rounded-lg transition-colors"
-          >
-            Generate Brief
-          </button>
         </div>
+        <button
+          onClick={handleGenerateSummary}
+          disabled={loading || !selectedFirNumber}
+          className="md:mt-5 px-5 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-2 shadow"
+        >
+          {loading ? (
+            <>
+              <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              <span>{L.generating}</span>
+            </>
+          ) : (
+            <>
+              <Activity className="w-4 h-4" />
+              <span>{L.generateBtn}</span>
+            </>
+          )}
+        </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 bg-slate-100/50">
+      {/* Content Body */}
+      <div className="flex-1 overflow-y-auto p-5 bg-slate-50/30">
         {loading ? (
-          <div className="flex flex-col items-center justify-center space-y-4 py-24">
-            <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-900 rounded-full animate-spin"></div>
-            <div className="text-center">
-              <p className="text-xs font-bold text-slate-800">Synthesizing CCTNS Dossier Database...</p>
-              <p className="text-[10px] text-slate-400">Structuring legal parameters, MO profiles, and evidence logs</p>
-            </div>
+          <div className="flex flex-col items-center justify-center py-24 space-y-3">
+            <div className="w-8 h-8 border-3 border-blue-500/20 border-t-blue-600 rounded-full animate-spin"></div>
+            <p className="text-xs text-slate-500 font-bold">{L.generating}</p>
           </div>
         ) : report ? (
-          <div className="grid grid-cols-12 gap-5 max-w-5xl mx-auto">
-            {/* Left Column: Brief Details in classical lawyer file aesthetic */}
-            <div className="col-span-12 lg:col-span-8 bg-white border border-slate-200 rounded-xl shadow-sm p-6 space-y-6">
-              {/* Report Header letterhead */}
-              <div className="text-center border-b border-slate-100 pb-5 space-y-1">
-                <h3 className="font-mono text-sm font-black text-slate-900 uppercase tracking-tight">Karnataka State Police Department</h3>
-                <p className="font-mono text-[9px] text-slate-400 uppercase tracking-widest">STRICTLY CONFIDENTIAL // LAW ENFORCEMENT PROSECUTION BRIEF</p>
-              </div>
-
-              {/* Case Details metadata */}
-              <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 p-4 rounded-xl border border-slate-100">
-                <div>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase">FIR Docket Reference</p>
-                  <p className="font-black text-slate-900">{report.firDetails.firNumber}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase">Date of Registration</p>
-                  <p className="font-black text-slate-900">{report.firDetails.dateFiled}</p>
-                </div>
-                <div className="pt-2">
-                  <p className="text-[10px] text-slate-400 font-bold uppercase">Jurisdiction Station</p>
-                  <p className="font-bold text-slate-800">{report.firDetails.policeStation}</p>
-                </div>
-                <div className="pt-2">
-                  <p className="text-[10px] text-slate-400 font-bold uppercase">Statute Section Chapters</p>
-                  <p className="font-bold text-slate-800 font-mono text-[11px]">{report.firDetails.ipcSections}</p>
-                </div>
-              </div>
-
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 animate-fadeIn">
+            {/* Left side: Report fields */}
+            <div className="lg:col-span-8 space-y-4">
               {/* Executive Summary */}
-              <div className="space-y-1.5">
-                <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-1.5">
-                  1. Executive Case Summary
+              <div className="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm space-y-2">
+                <h4 className="text-xs font-black text-slate-800 border-b border-slate-100 pb-2 uppercase tracking-wide flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-emerald-600" />
+                  {L.executiveSummary}
                 </h4>
-                <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap">{report.executiveSummary}</p>
+                <p className="text-xs text-slate-600 leading-relaxed text-justify">{report.executiveSummary}</p>
               </div>
 
-              {/* CCTNS Description */}
-              <div className="space-y-1.5">
-                <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-1.5">
-                  2. Detailed Occurrence Chronicle
+              {/* Case Operational Overview */}
+              <div className="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm space-y-2">
+                <h4 className="text-xs font-black text-slate-800 border-b border-slate-100 pb-2 uppercase tracking-wide flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-blue-600" />
+                  {L.caseOverview}
                 </h4>
-                <p className="text-xs text-slate-600 leading-relaxed">{report.firDetails.description}</p>
+                <p className="text-xs text-slate-600 leading-relaxed text-justify">{report.caseOverview}</p>
               </div>
 
-              {/* Profiles & Evidence Grid */}
+              {/* Suspect & Victim Profiles */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 border border-slate-100 rounded-xl bg-slate-50/50 space-y-1">
-                  <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">3A. Suspect Profile</h5>
-                  <p className="text-xs text-slate-700 leading-relaxed font-bold">{report.suspectAnalysis}</p>
+                <div className="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm space-y-2">
+                  <h4 className="text-xs font-black text-slate-800 border-b border-slate-100 pb-1.5 uppercase tracking-wide flex items-center gap-1.5">
+                    <Users className="w-4 h-4 text-slate-500" />
+                    {L.accusedAnalysis}
+                  </h4>
+                  <p className="text-xs text-slate-600 leading-relaxed">{report.suspectAnalysis}</p>
                 </div>
-                <div className="p-4 border border-slate-100 rounded-xl bg-slate-50/50 space-y-1">
-                  <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">3B. Complainant Statement</h5>
-                  <p className="text-xs text-slate-700 leading-relaxed font-bold">{report.victimAnalysis}</p>
+
+                <div className="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm space-y-2">
+                  <h4 className="text-xs font-black text-slate-800 border-b border-slate-100 pb-1.5 uppercase tracking-wide flex items-center gap-1.5">
+                    <FileText className="w-4 h-4 text-slate-500" />
+                    {L.victimStatements}
+                  </h4>
+                  <p className="text-xs text-slate-600 leading-relaxed">{report.victimAnalysis}</p>
                 </div>
               </div>
 
-              {/* Evidence & Deficit analysis */}
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1">
-                    <Database className="w-4 h-4 text-slate-400" />
-                    4. Logged Forensic Exhibits
-                  </h4>
-                  <p className="text-xs text-slate-600 leading-relaxed">{report.evidenceCollected}</p>
-                </div>
-                <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl space-y-1">
-                  <h4 className="text-[10px] font-black text-rose-800 uppercase tracking-wider flex items-center gap-1">
-                    <AlertTriangle className="w-3.5 h-3.5" />
-                    Pending Forensic Materials Required
-                  </h4>
-                  <p className="text-xs text-rose-900">{report.missingEvidence}</p>
-                </div>
-              </div>
-
-              {/* Next steps */}
-              <div className="space-y-2">
-                <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-1.5">
-                  5. Actionable Prosecution Directives
+              {/* Physical & Digital Evidence */}
+              <div className="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm space-y-2">
+                <h4 className="text-xs font-black text-slate-800 border-b border-slate-100 pb-2 uppercase tracking-wide flex items-center gap-2">
+                  <Database className="w-4 h-4 text-slate-500" />
+                  {L.evidenceCollected}
                 </h4>
-                <ul className="space-y-1.5">
+                <p className="text-xs text-slate-600 leading-relaxed text-justify">{report.evidenceCollected}</p>
+              </div>
+
+              {/* Missing Evidence Checklist */}
+              <div className="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm space-y-2">
+                <h4 className="text-xs font-black text-red-800 border-b border-red-100 pb-2 uppercase tracking-wide flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-600 animate-pulse" />
+                  {L.missingEvidence}
+                </h4>
+                <p className="text-xs text-red-700 leading-relaxed text-justify bg-red-50/40 p-3 rounded-lg border border-red-100/50">{report.missingEvidence}</p>
+              </div>
+
+              {/* Chronological Investigation Progress */}
+              <div className="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm space-y-2">
+                <h4 className="text-xs font-black text-slate-800 border-b border-slate-100 pb-2 uppercase tracking-wide flex items-center gap-2">
+                  <ChevronRight className="w-4 h-4 text-blue-600" />
+                  {L.investigationProgress}
+                </h4>
+                <p className="text-xs text-slate-600 leading-relaxed text-justify">{report.investigationProgress}</p>
+              </div>
+
+              {/* Suggested Next Steps */}
+              <div className="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm space-y-3">
+                <h4 className="text-xs font-black text-slate-800 border-b border-slate-100 pb-2 uppercase tracking-wide">
+                  {L.recommendedActions}
+                </h4>
+                <ul className="space-y-2">
                   {report.recommendedNextActions.map((action, i) => (
-                    <li key={i} className="text-xs text-slate-600 flex items-start gap-2">
-                      <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                    <li key={i} className="flex items-start gap-2.5 text-xs text-slate-600 leading-snug">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0 mt-1.5"></span>
                       <span>{action}</span>
                     </li>
                   ))}
@@ -339,19 +411,18 @@ export function CaseSummaryGenerator({ currentUser, firs }: CaseSummaryProps) {
               </div>
             </div>
 
-            {/* Right Column: Court Probability scores & Actions */}
-            <div className="col-span-12 lg:col-span-4 space-y-4">
-              {/* Conviction Predictor */}
-              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
-                <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <TrendingUp className="w-4 h-4 text-emerald-600" />
-                  Prosecution Conviction Probability
+            {/* Right side: Summary audit widgets & actions */}
+            <div className="lg:col-span-4 space-y-5">
+              {/* Analytics Summary */}
+              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-5">
+                <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider pb-1.5 border-b border-slate-100">
+                  {language === "Kannada" ? "ಪ್ರಾಸಿಕ್ಯೂಷನ್ ವಿಶ್ಲೇಷಣೆ" : "Prosecution Audit Summary"}
                 </h3>
 
                 <div className="space-y-3">
                   <div>
                     <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-slate-500 font-bold">Estimated Conviction Rate</span>
+                      <span className="text-slate-500 font-bold">{L.convictionRate}</span>
                       <span className="text-emerald-600 font-extrabold">{report.probabilityOfConviction}%</span>
                     </div>
                     <div className="w-full bg-slate-100 rounded-full h-2">
@@ -364,7 +435,7 @@ export function CaseSummaryGenerator({ currentUser, firs }: CaseSummaryProps) {
 
                   <div>
                     <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-slate-500 font-bold">Evidence Integrity Score</span>
+                      <span className="text-slate-500 font-bold">{L.evidenceIntegrity}</span>
                       <span className="text-blue-600 font-extrabold">{report.courtReadinessScore}%</span>
                     </div>
                     <div className="w-full bg-slate-100 rounded-full h-2">
@@ -377,8 +448,8 @@ export function CaseSummaryGenerator({ currentUser, firs }: CaseSummaryProps) {
                 </div>
 
                 <div className="p-3.5 bg-slate-50 border border-slate-100 rounded-lg text-[10px] text-slate-500 space-y-1">
-                  <p className="font-bold text-slate-700">Audit Insight:</p>
-                  <p>Risk classification is cataloged as: <span className="font-bold text-red-600">{report.riskAssessment}</span>.</p>
+                  <p className="font-bold text-slate-700">{L.auditInsight}</p>
+                  <p>{L.riskClassification} <span className="font-bold text-red-600">{report.riskAssessment}</span>.</p>
                 </div>
               </div>
 
@@ -386,21 +457,21 @@ export function CaseSummaryGenerator({ currentUser, firs }: CaseSummaryProps) {
               <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
                 <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
                   <ShieldCheck className="w-4 h-4 text-blue-600" />
-                  Supervisor Sign-Off
+                  {L.supervisorSignOff}
                 </h3>
 
                 {approvedBySupervisor ? (
                   <div className="p-4 bg-emerald-50 border border-emerald-100 text-emerald-800 rounded-xl space-y-2 text-center">
-                    <p className="text-[10px] font-black uppercase tracking-wider">Docket Authorized</p>
+                    <p className="text-[10px] font-black uppercase tracking-wider">{L.docketAuthorized}</p>
                     <p className="text-xs font-bold leading-snug">
-                      Authorized by Supervisor: {supervisorName}
+                      {L.authorizedBy} {supervisorName}
                     </p>
-                    <p className="text-[9px] text-emerald-600">Digital stamp applied to file block registry.</p>
+                    <p className="text-[9px] text-emerald-600">{L.digitalStampApplied}</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <p className="text-xs text-slate-500 leading-relaxed">
-                      Only Authorized Supervisor or Admin accounts can sign off on CCTNS briefs before court compilation.
+                    <p className="text-xs text-slate-500 leading-relaxed text-justify">
+                      {L.signOffNotice}
                     </p>
                     {currentUser.role === UserRole.SUPERVISOR || currentUser.role === UserRole.ADMIN ? (
                       <button
@@ -408,11 +479,13 @@ export function CaseSummaryGenerator({ currentUser, firs }: CaseSummaryProps) {
                         className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-2"
                       >
                         <CheckSquare className="w-4 h-4" />
-                        Authorize & Stamp Dossier
+                        {L.authorizeBtn}
                       </button>
                     ) : (
                       <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg text-[10px] text-amber-700 font-bold leading-tight">
-                        🔒 Read-only access: Your currently logged-in profile role ({currentUser.role}) does not hold case sign-off authorization.
+                        🔒 Read-only access: {language === "Kannada" 
+                          ? `ನಿಮ್ಮ ಪ್ರಸ್ತುತ ಲಾಗಿನ್ ಆಗಿರುವ ಪಾತ್ರವು (${currentUser.role}) ಅನುಮೋದಿಸುವ ಅಧಿಕಾರ ಹೊಂದಿಲ್ಲ.` 
+                          : `Your currently logged-in profile role (${currentUser.role}) does not hold case sign-off authorization.`}
                       </div>
                     )}
                   </div>
@@ -425,7 +498,7 @@ export function CaseSummaryGenerator({ currentUser, firs }: CaseSummaryProps) {
                 className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow transition-colors"
               >
                 <Download className="w-4 h-4" />
-                Export Brief as PDF
+                {L.exportBtn}
               </button>
             </div>
           </div>
@@ -435,9 +508,9 @@ export function CaseSummaryGenerator({ currentUser, firs }: CaseSummaryProps) {
               <FileText className="w-8 h-8" />
             </div>
             <div className="space-y-1">
-              <h4 className="text-xs font-bold text-slate-800">Dossier Workspace Ready</h4>
+              <h4 className="text-xs font-bold text-slate-800">{L.workspaceReady}</h4>
               <p className="text-[11px] text-slate-500 leading-relaxed">
-                Choose an active FIR investigation file from the dropdown above to auto-synthesize a prosecution brief for magistrates and courts.
+                {L.workspaceReadyDesc}
               </p>
             </div>
           </div>
